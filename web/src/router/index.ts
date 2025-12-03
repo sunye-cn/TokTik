@@ -1,8 +1,10 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
+import LoginView from "../views/LoginView.vue";
+import RegisterView from "../views/RegisterView.vue";
+import UploadView from "../views/UploadView.vue";
+import store from "../store";
 
-// 临时移除 RouteRecordRaw 类型引用，使用 any 规避 TS 检查错误
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const routes: Array<any> = [
   {
     path: "/",
@@ -10,10 +12,24 @@ const routes: Array<any> = [
     component: HomeView,
   },
   {
+    path: "/login",
+    name: "login",
+    component: LoginView,
+  },
+  {
+    path: "/register",
+    name: "register",
+    component: RegisterView,
+  },
+  {
+    path: "/upload",
+    name: "upload",
+    component: UploadView,
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/about",
     name: "about",
-    // route level code-splitting
-    // this generates a separate chunk (about.[hash].js) for this route
     component: () =>
       import(/* webpackChunkName: "about" */ "../views/AboutView.vue"),
   },
@@ -22,6 +38,21 @@ const routes: Array<any> = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+});
+
+router.beforeEach((to: any, from: any, next: any) => {
+  if (to.matched.some((record: any) => record.meta.requiresAuth)) {
+    if (!store.getters.isAuthenticated) {
+      next({
+        path: "/login",
+        query: { redirect: to.fullPath },
+      });
+    } else {
+      next();
+    }
+  } else {
+    next();
+  }
 });
 
 export default router;

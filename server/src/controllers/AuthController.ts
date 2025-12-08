@@ -23,6 +23,7 @@ export class AuthController {
 
         const user = new User();
         user.username = username;
+        user.nickname = username;
         user.password = bcrypt.hashSync(password, 10);
 
         try {
@@ -63,6 +64,40 @@ export class AuthController {
             { expiresIn: "1h" }
         );
 
-        res.send({ token, userId: user.id, username: user.username });
+        res.send({ token, username: user.username, nickname: user.nickname, userId: user.id });
+    };
+
+    static resetPassword = async (req: Request, res: Response) => {
+        const { username, newPassword } = req.body;
+        if (!username || !newPassword) {
+            res.status(400).send("Username and new password are required");
+            return;
+        }
+
+        const userRepository = AppDataSource.getRepository(User);
+        let user: User | null;
+
+        try {
+            user = await userRepository.findOne({ where: { username } });
+        } catch (error) {
+            res.status(500).send("Error finding user");
+            return;
+        }
+
+        if (!user) {
+            res.status(404).send("User not found");
+            return;
+        }
+
+        user.password = bcrypt.hashSync(newPassword, 10);
+
+        try {
+            await userRepository.save(user);
+        } catch (e) {
+            res.status(500).send("Error updating password");
+            return;
+        }
+
+        res.status(200).send("Password updated successfully");
     };
 }

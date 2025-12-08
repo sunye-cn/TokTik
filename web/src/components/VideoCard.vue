@@ -2,11 +2,11 @@
   <Card
     class="break-inside-avoid overflow-hidden group cursor-pointer transition-all hover:shadow-lg relative"
   >
-    <div class="relative aspect-[9/16] w-full overflow-hidden bg-black">
+    <div class="relative w-full overflow-hidden bg-black">
       <video
         ref="videoRef"
         :src="videoUrl"
-        class="h-full w-full object-cover"
+        class="w-full object-cover"
         loop
         playsinline
         disablePictureInPicture
@@ -16,7 +16,6 @@
         @ended="onEnded"
         @mouseenter="onMouseEnter"
         @mouseleave="onMouseLeave"
-        @click="togglePlay"
         @error="handleError"
       ></video>
 
@@ -95,11 +94,30 @@
       >
         <Heart class="h-6 w-6" :class="{ 'fill-current': isLiked }" />
       </button>
+
+      <!-- Edit/Delete Actions (Top Left) - Only if showActions is true -->
+      <div v-if="showActions" class="absolute top-3 left-3 flex gap-2">
+        <button
+          @click.stop="$emit('edit', video)"
+          class="p-2 rounded-full bg-black/20 backdrop-blur-sm text-white hover:bg-black/40 hover:text-primary transition-all"
+        >
+          <Edit class="h-5 w-5" />
+        </button>
+        <button
+          @click.stop="$emit('delete', video)"
+          class="p-2 rounded-full bg-black/20 backdrop-blur-sm text-white hover:bg-black/40 hover:text-destructive transition-all"
+        >
+          <Trash2 class="h-5 w-5" />
+        </button>
+      </div>
     </div>
 
     <CardContent class="p-4">
-      <h3 class="font-semibold leading-none tracking-tight mb-2 line-clamp-1">
+      <h3 class="font-semibold leading-none tracking-tight mb-2 line-clamp-2">
         {{ video.title }}
+        <span v-if="video.category" class="text-blue-500"
+          >#{{ video.category }}</span
+        >
       </h3>
       <div
         class="flex items-center justify-between text-sm text-muted-foreground"
@@ -108,16 +126,28 @@
           <div
             class="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary"
           >
-            {{ video.user.username.charAt(0).toUpperCase() }}
+            {{
+              (video.user?.nickname || video.user?.username)
+                ?.charAt(0)
+                .toUpperCase() || "?"
+            }}
           </div>
-          <span class="truncate max-w-[100px]">{{ video.user.username }}</span>
+          <span class="truncate max-w-[80px]">{{
+            video.user?.nickname || video.user?.username || "Unknown"
+          }}</span>
         </div>
-        <div class="flex items-center gap-1">
-          <Heart
-            class="h-3 w-3"
-            :class="{ 'fill-red-500 text-red-500': isLiked }"
-          />
-          <span>{{ likeCount }}</span>
+        <div class="flex items-center gap-3 text-xs">
+          <div v-if="showViews" class="flex items-center gap-1">
+            <Play class="h-3 w-3" />
+            <span>{{ video.views || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <Heart
+              class="h-3 w-3"
+              :class="{ 'fill-red-500 text-red-500': isLiked }"
+            />
+            <span>{{ likeCount }}</span>
+          </div>
         </div>
       </div>
     </CardContent>
@@ -125,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Play,
@@ -134,13 +164,25 @@ import {
   VolumeX,
   RotateCcw,
   Heart,
+  Edit,
+  Trash2,
 } from "lucide-vue-next";
 import api from "@/services/api";
 import { useStore } from "vuex";
 
-const props = defineProps<{
-  video: any;
-}>();
+const props = withDefaults(
+  defineProps<{
+    video: any;
+    showViews?: boolean;
+    showActions?: boolean;
+  }>(),
+  {
+    showViews: true,
+    showActions: false,
+  }
+);
+
+defineEmits(["edit", "delete"]);
 
 const store = useStore();
 const videoRef = ref<HTMLVideoElement | null>(null);
@@ -163,15 +205,22 @@ const videoUrl = computed(() => {
 
 const currentUser = computed(() => store.getters.currentUser);
 
-onMounted(() => {
-  // Initialize like state
+const updateLikeState = () => {
   likeCount.value = props.video.likes ? props.video.likes.length : 0;
   if (currentUser.value && props.video.likes) {
     isLiked.value = props.video.likes.some(
       (like: any) => like.user && like.user.id === currentUser.value.id
     );
+  } else {
+    isLiked.value = false;
   }
+};
+
+onMounted(() => {
+  updateLikeState();
 });
+
+watch(() => props.video, updateLikeState, { deep: true });
 
 const togglePlay = () => {
   if (!videoRef.value) return;

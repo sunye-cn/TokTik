@@ -3,15 +3,56 @@ import { AppDataSource } from "../data-source";
 import { Video } from "../entity/Video";
 import { User } from "../entity/User";
 import { Like } from "../entity/Like";
+import { ILike } from "typeorm";
 
 export class VideoController {
 
     static listAll = async (req: Request, res: Response) => {
         const videoRepository = AppDataSource.getRepository(Video);
+        const { sort, category, search } = req.query;
+
+        let order: any = { createdAt: "DESC" };
+        if (sort === "views") order = { views: "DESC" };
+        else if (sort === "likes") order = { likes: { id: "DESC" } }; // Approximation, ideally count
+        else if (sort === "title") order = { title: "ASC" };
+
+        let where: any = [];
+        const searchTerm = search ? `%${search}%` : null;
+
+        if (searchTerm) {
+            if (category) {
+                where = [
+                    { category: category, title: ILike(searchTerm) },
+                    { category: category, description: ILike(searchTerm) }
+                ];
+            } else {
+                where = [
+                    { title: ILike(searchTerm) },
+                    { description: ILike(searchTerm) },
+                    { category: ILike(searchTerm) }
+                ];
+            }
+        } else {
+            if (category) {
+                where = { category: category };
+            } else {
+                where = {};
+            }
+        }
+
         const videos = await videoRepository.find({
-            relations: ["user", "likes", "likes.user"],
-            order: { createdAt: "DESC" }
+            where,
+            relations: ["user", "likes", "likes.user", "comments", "danmakus"],
+            order
         });
+        
+        // If sorting by likes count is needed properly, we might need query builder, 
+        // but for now let's stick to simple find or sort in memory if dataset is small.
+        // TypeORM find options for relation count sorting is tricky.
+        if (sort === "likes") {
+            videos.sort((a, b) => (b.likes?.length || 0) - (a.likes?.length || 0));
+        }
+
         res.send(videos);
     };
 
@@ -21,8 +62,13 @@ export class VideoController {
         try {
             const video = await videoRepository.findOneOrFail({ 
                 where: { id },
-                relations: ["user", "likes", "likes.user"]
+                relations: ["user", "likes", "likes.user", "comments", "comments.user", "danmakus", "danmakus.user"]
             });
+            
+            // Increment views
+            video.views = (video.views || 0) + 1;
+            await videoRepository.save(video);
+
             res.send(video);
         } catch (error) {
             res.status(404).send("Video not found");
@@ -36,7 +82,7 @@ export class VideoController {
             return;
         }
 
-        const { title, description } = req.body;
+        const { title, description, category } = req.body;
         const userId = res.locals.jwtPayload.userId;
 
         const userRepository = AppDataSource.getRepository(User);
@@ -51,6 +97,7 @@ export class VideoController {
         const video = new Video();
         video.title = title;
         video.description = description;
+        video.category = category || "Life";
         // Normalize path for URL usage
         video.url = req.file.path.replace(/\\/g, "/"); 
         video.user = user;
@@ -66,6 +113,31 @@ export class VideoController {
         res.status(201).send(video);
     };
 
+    static update = async (req: Request, res: Response) => {
+        const id = parseInt(req.params.id);
+        const { title, description, category } = req.body;
+        const userId = res.locals.jwtPayload.userId;
+
+        const videoRepository = AppDataSource.getRepository(Video);
+        try {
+            const video = await videoRepository.findOneOrFail({ where: { id }, relations: ["user"] });
+            
+            if (video.user.id !== userId) {
+                res.status(403).send("Not authorized to update this video");
+                return;
+            }
+
+            video.title = title;
+            video.description = description;
+            if (category) video.category = category;
+
+            await videoRepository.save(video);
+            res.send(video);
+        } catch (error) {
+            res.status(404).send("Video not found");
+        }
+    };
+
     static delete = async (req: Request, res: Response) => {
         const id = parseInt(req.params.id);
         const userId = res.locals.jwtPayload.userId;
@@ -74,17 +146,17 @@ export class VideoController {
         let video: Video;
         try {
             video = await videoRepository.findOneOrFail({ where: { id }, relations: ["user"] });
+            
+            if (video.user.id !== userId) {
+                res.status(403).send("Not authorized to delete this video");
+                return;
+            }
         } catch (error) {
             res.status(404).send("Video not found");
             return;
         }
-
-        if (video.user.id !== userId) {
-            res.status(403).send("Not authorized to delete this video");
-            return;
-        }
-
-        videoRepository.delete(id);
+        
+        await videoRepository.remove(video);
         res.status(204).send();
     };
 

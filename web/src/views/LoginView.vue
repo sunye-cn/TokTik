@@ -39,10 +39,17 @@
         <div class="mt-4 text-center text-sm text-muted-foreground">
           <router-link
             to="/register"
-            class="underline underline-offset-4 hover:text-primary"
+            class="underline-offset-4 hover:text-primary hover:underline"
           >
             Don't have an account? Sign Up
           </router-link>
+        </div>
+        <div class="text-center text-sm text-gray-500 mt-4 space-y-2">
+          <div>
+            <router-link to="/reset-password" class="hover:underline">
+              Forgot Password?
+            </router-link>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -78,8 +85,10 @@ const handleLogin = async () => {
       password: password.value,
     });
     router.push("/");
-  } catch (error) {
-    alert("Login failed");
+  } catch (error: any) {
+    console.error("Login error:", error);
+    const message = error.response?.data || error.message || "Login failed";
+    alert(message);
   } finally {
     isLoading.value = false;
   }

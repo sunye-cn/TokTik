@@ -18,6 +18,19 @@
               />
             </div>
             <div class="grid gap-2">
+              <Label for="category">Category</Label>
+              <select
+                id="category"
+                v-model="category"
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="" disabled>Select a category</option>
+                <option v-for="cat in categories" :key="cat" :value="cat">
+                  {{ cat }}
+                </option>
+              </select>
+            </div>
+            <div class="grid gap-2">
               <Label for="description">Description</Label>
               <Textarea
                 id="description"
@@ -64,6 +77,8 @@ import {
 
 const title = ref("");
 const description = ref("");
+const category = ref("");
+const categories = ["Life", "Tech", "Funny", "Music", "Dance"];
 const file = ref<File | null>(null);
 const isLoading = ref(false);
 const router = useRouter();
@@ -82,6 +97,7 @@ const handleUpload = async () => {
   const formData = new FormData();
   formData.append("title", title.value);
   formData.append("description", description.value);
+  formData.append("category", category.value);
   formData.append("video", file.value);
 
   try {

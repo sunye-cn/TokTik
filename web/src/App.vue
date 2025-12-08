@@ -3,10 +3,10 @@
     <nav
       class="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
-      <div class="container flex h-14 items-center">
-        <div class="mr-4 hidden md:flex">
+      <div class="w-full px-6 flex h-14 items-center">
+        <div class="mr-4 flex">
           <router-link to="/" class="mr-6 flex items-center space-x-2">
-            <span class="hidden font-bold sm:inline-block">TokTik</span>
+            <span class="font-bold inline-block">TokTik</span>
           </router-link>
           <nav class="flex items-center space-x-6 text-sm font-medium">
             <router-link
@@ -38,25 +38,53 @@
               </router-link>
             </template>
             <template v-else>
-              <button
-                @click="logout"
-                class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-              >
-                Logout
-              </button>
+              <div class="relative group">
+                <button class="flex items-center gap-2 focus:outline-none">
+                  <div
+                    class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border"
+                  >
+                    <img
+                      v-if="currentUser?.avatar"
+                      :src="`http://localhost:3000/${currentUser.avatar}`"
+                      class="h-full w-full object-cover"
+                    />
+                    <span v-else class="text-xs font-bold text-primary">{{
+                      currentUser?.username?.charAt(0).toUpperCase()
+                    }}</span>
+                  </div>
+                </button>
+
+                <!-- Dropdown -->
+                <div
+                  class="absolute right-0 mt-2 w-48 bg-popover border rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
+                >
+                  <router-link
+                    to="/profile"
+                    class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                  >
+                    My Profile
+                  </router-link>
+                  <button
+                    @click="confirmLogout"
+                    class="block w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
             </template>
           </nav>
         </div>
       </div>
     </nav>
-    <main class="container py-6">
+    <main class="w-full px-6 py-6">
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useStore } from "vuex";
 import { useRouter } from "vue-router";
 
@@ -64,9 +92,18 @@ const store = useStore();
 const router = useRouter();
 
 const isAuthenticated = computed(() => store.getters.isAuthenticated);
+const currentUser = computed(() => store.getters.currentUser);
 
-const logout = () => {
-  store.dispatch("logout");
-  router.push("/login");
+onMounted(() => {
+  if (isAuthenticated.value) {
+    store.dispatch("fetchProfile");
+  }
+});
+
+const confirmLogout = () => {
+  if (confirm("Are you sure you want to logout?")) {
+    store.dispatch("logout");
+    router.push("/login");
+  }
 };
 </script>

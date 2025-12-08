@@ -3,6 +3,8 @@ import { DataSource } from "typeorm";
 import { User } from "./entity/User";
 import { Video } from "./entity/Video";
 import { Like } from "./entity/Like";
+import { Comment } from "./entity/Comment";
+import { Danmaku } from "./entity/Danmaku";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -16,7 +18,7 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME || "toktik",
     synchronize: true, // Don't use this in production
     logging: false,
-    entities: [User, Video, Like],
+    entities: [User, Video, Like, Comment, Danmaku],
     migrations: [],
     subscribers: [],
 });

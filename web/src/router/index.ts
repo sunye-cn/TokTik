@@ -2,7 +2,10 @@ import { createRouter, createWebHashHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import RegisterView from "../views/RegisterView.vue";
+import ResetPasswordView from "../views/ResetPasswordView.vue";
 import UploadView from "../views/UploadView.vue";
+import VideoDetailView from "../views/VideoDetailView.vue";
+import ProfileView from "../views/ProfileView.vue";
 import store from "../store";
 
 const routes: Array<any> = [
@@ -22,9 +25,25 @@ const routes: Array<any> = [
     component: RegisterView,
   },
   {
+    path: "/reset-password",
+    name: "reset-password",
+    component: ResetPasswordView,
+  },
+  {
     path: "/upload",
     name: "upload",
     component: UploadView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/video/:id",
+    name: "video-detail",
+    component: VideoDetailView,
+  },
+  {
+    path: "/profile",
+    name: "profile",
+    component: ProfileView,
     meta: { requiresAuth: true },
   },
   {

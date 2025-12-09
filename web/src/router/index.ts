@@ -47,6 +47,16 @@ const routes: Array<any> = [
     meta: { requiresAuth: true },
   },
   {
+    path: "/profile/:id",
+    name: "user-profile-id",
+    component: ProfileView,
+  },
+  {
+    path: "/u/:username",
+    name: "user-profile",
+    component: ProfileView,
+  },
+  {
     path: "/about",
     name: "about",
     component: () =>

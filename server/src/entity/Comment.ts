@@ -10,10 +10,10 @@ export class Comment {
     @Column()
     content!: string;
 
-    @ManyToOne(() => User, (user) => user.comments)
+    @ManyToOne(() => User, (user) => user.comments, { onDelete: "CASCADE" })
     user!: User;
 
-    @ManyToOne(() => Video, (video) => video.comments)
+    @ManyToOne(() => Video, (video) => video.comments, { onDelete: "CASCADE" })
     video!: Video;
 
     @Column({ default: 0 })

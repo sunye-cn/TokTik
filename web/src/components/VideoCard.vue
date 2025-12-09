@@ -124,13 +124,18 @@
       >
         <div class="flex items-center gap-2">
           <div
-            class="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary"
+            class="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden"
           >
-            {{
+            <img
+              v-if="video.user?.avatar"
+              :src="`http://localhost:3000/${video.user.avatar}`"
+              class="h-full w-full object-cover"
+            />
+            <span v-else>{{
               (video.user?.nickname || video.user?.username)
                 ?.charAt(0)
                 .toUpperCase() || "?"
-            }}
+            }}</span>
           </div>
           <span class="truncate max-w-[80px]">{{
             video.user?.nickname || video.user?.username || "Unknown"
@@ -221,6 +226,7 @@ onMounted(() => {
 });
 
 watch(() => props.video, updateLikeState, { deep: true });
+watch(currentUser, updateLikeState);
 
 const togglePlay = () => {
   if (!videoRef.value) return;

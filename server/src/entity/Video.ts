@@ -27,7 +27,7 @@ export class Video {
     @Column({ nullable: true })
     category!: string;
 
-    @ManyToOne(() => User, (user) => user.videos)
+    @ManyToOne(() => User, (user) => user.videos, { onDelete: "CASCADE" })
     user!: User;
 
     @OneToMany(() => Like, (like) => like.video)

@@ -58,18 +58,34 @@
                 <div
                   class="absolute right-0 mt-2 w-48 bg-popover border rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
                 >
-                  <router-link
-                    to="/profile"
-                    class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                  >
-                    My Profile
-                  </router-link>
-                  <button
-                    @click="confirmLogout"
-                    class="block w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
-                  >
-                    Logout
-                  </button>
+                  <template v-if="!isProfilePage">
+                    <router-link
+                      to="/profile"
+                      class="block px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
+                      My Profile
+                    </router-link>
+                    <button
+                      @click="openLogoutModal"
+                      class="block w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
+                    >
+                      Logout
+                    </button>
+                  </template>
+                  <template v-else>
+                    <button
+                      @click="openDeleteNoticeModal"
+                      class="block w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
+                      Delete Account
+                    </button>
+                    <button
+                      @click="openLogoutModal"
+                      class="block w-full text-left px-4 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
+                    >
+                      Logout
+                    </button>
+                  </template>
                 </div>
               </div>
             </template>
@@ -80,19 +96,120 @@
     <main class="w-full px-6 py-6">
       <router-view />
     </main>
+
+    <!-- Logout Confirmation Modal -->
+    <Modal
+      :isOpen="showLogoutModal"
+      title="Confirm Logout"
+      description="Are you sure you want to logout?"
+      @close="showLogoutModal = false"
+    >
+      <template #footer>
+        <Button variant="outline" @click="showLogoutModal = false">
+          Cancel
+        </Button>
+        <Button variant="destructive" @click="handleLogout">Logout</Button>
+      </template>
+    </Modal>
+
+    <!-- Delete Account Notice Modal -->
+    <Modal
+      :isOpen="showDeleteNoticeModal"
+      title="Account Deletion Notice"
+      @close="showDeleteNoticeModal = false"
+    >
+      <div
+        class="text-sm text-muted-foreground space-y-4 text-left max-h-[60vh] overflow-y-auto"
+      >
+        <p>
+          To ensure the security of your account, the following conditions must
+          be met before your deletion request takes effect:
+        </p>
+        <ol class="list-decimal list-inside space-y-2">
+          <li>Account security verification required.</li>
+          <li>
+            <strong>Account assets settled and transactions completed</strong
+            ><br />
+            All assets and expected earnings (including cash, coins, coupons,
+            etc.) and rights (including membership) under the account have been
+            settled, refunded, cleared, or voluntarily forfeited. All
+            transactions have been completed or voluntarily forfeited. Payment
+            accounts have been cancelled.
+          </li>
+          <li>
+            <strong>Account authorizations and bindings released</strong><br />
+            The account has released authorizations or bindings with other
+            accounts (including enterprise accounts, employee accounts, etc.)
+            and third-party products/platforms. There are no unfinished or
+            disputed contents in related services accessed through this account.
+          </li>
+          <li>
+            <strong>No account disputes</strong><br />
+            Including but not limited to complaints or reports, services have
+            been completed or voluntarily forfeited.
+          </li>
+        </ol>
+        <div class="flex items-center space-x-2 pt-4">
+          <input
+            type="checkbox"
+            id="agreeDelete"
+            v-model="deleteAgreed"
+            class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label
+            for="agreeDelete"
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I have read and agree to the TokTik Account Deletion Notice
+          </label>
+        </div>
+      </div>
+      <template #footer>
+        <Button :disabled="!deleteAgreed" @click="handleDeleteNoticeNext">
+          Next
+        </Button>
+      </template>
+    </Modal>
+
+    <!-- Delete Account Confirmation Modal -->
+    <Modal
+      :isOpen="showDeleteConfirmModal"
+      title="Confirm Deletion"
+      description="Are you sure you want to delete your account? This action cannot be undone."
+      @close="showDeleteConfirmModal = false"
+    >
+      <template #footer>
+        <Button variant="outline" @click="showDeleteConfirmModal = false">
+          Cancel
+        </Button>
+        <Button variant="destructive" @click="handleDeleteConfirm">
+          Confirm
+        </Button>
+      </template>
+    </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useStore } from "vuex";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
+import Modal from "@/components/ui/modal/Modal.vue";
+import { Button } from "@/components/ui/button";
+import api from "@/services/api";
 
 const store = useStore();
 const router = useRouter();
+const route = useRoute();
 
 const isAuthenticated = computed(() => store.getters.isAuthenticated);
 const currentUser = computed(() => store.getters.currentUser);
+const isProfilePage = computed(() => route.path === "/profile");
+
+const showLogoutModal = ref(false);
+const showDeleteNoticeModal = ref(false);
+const showDeleteConfirmModal = ref(false);
+const deleteAgreed = ref(false);
 
 onMounted(() => {
   if (isAuthenticated.value) {
@@ -100,10 +217,35 @@ onMounted(() => {
   }
 });
 
-const confirmLogout = () => {
-  if (confirm("Are you sure you want to logout?")) {
+const openLogoutModal = () => {
+  showLogoutModal.value = true;
+};
+
+const handleLogout = () => {
+  store.dispatch("logout");
+  showLogoutModal.value = false;
+  router.push("/login");
+};
+
+const openDeleteNoticeModal = () => {
+  deleteAgreed.value = false;
+  showDeleteNoticeModal.value = true;
+};
+
+const handleDeleteNoticeNext = () => {
+  showDeleteNoticeModal.value = false;
+  showDeleteConfirmModal.value = true;
+};
+
+const handleDeleteConfirm = async () => {
+  try {
+    await api.delete("/users/profile");
     store.dispatch("logout");
+    showDeleteConfirmModal.value = false;
     router.push("/login");
+  } catch (error) {
+    console.error("Failed to delete account:", error);
+    alert("Failed to delete account. Please try again.");
   }
 };
 </script>

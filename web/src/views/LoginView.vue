@@ -53,6 +53,19 @@
         </div>
       </CardContent>
     </Card>
+
+    <Modal
+      :isOpen="showSuccessModal"
+      title="Welcome Back!"
+      description="登录成功！欢迎来到toktik!"
+      :closeOnBackdropClick="false"
+    >
+      <template #footer>
+        <Button @click="handleSuccessClose" class="w-full sm:w-auto">
+          Continue
+        </Button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -70,10 +83,12 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import Modal from "@/components/ui/modal/Modal.vue";
 
 const username = ref("");
 const password = ref("");
 const isLoading = ref(false);
+const showSuccessModal = ref(false);
 const store = useStore();
 const router = useRouter();
 
@@ -84,7 +99,7 @@ const handleLogin = async () => {
       username: username.value,
       password: password.value,
     });
-    router.push("/");
+    showSuccessModal.value = true;
   } catch (error: any) {
     console.error("Login error:", error);
     const message = error.response?.data || error.message || "Login failed";
@@ -92,5 +107,10 @@ const handleLogin = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+const handleSuccessClose = () => {
+  showSuccessModal.value = false;
+  router.push("/");
 };
 </script>

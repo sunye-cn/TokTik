@@ -23,14 +23,19 @@ export class UserController {
                     "likes.video", 
                     "likes.video.user",
                     "likes.video.likes",
-                    "likes.video.likes.user"
+                    "likes.video.likes.user",
+                    "followers",
+                    "following"
                 ]
             });
             
             // Transform likes to return the videos
             const likedVideos = user.likes.map(like => like.video);
+            const followersCount = user.followers.length;
+            const followingCount = user.following.length;
+            const totalLikes = user.videos.reduce((acc, video) => acc + video.likes.length, 0);
             
-            res.send({ ...user, likedVideos });
+            res.send({ ...user, likedVideos, followersCount, followingCount, totalLikes });
         } catch (error) {
             res.status(404).send("User not found");
         }
@@ -88,15 +93,86 @@ export class UserController {
 
     static getOneById = async (req: Request, res: Response) => {
         const id = parseInt(req.params.id);
+        const currentUserId = res.locals.jwtPayload.userId;
         const userRepository = AppDataSource.getRepository(User);
         try {
             const user = await userRepository.findOneOrFail({ 
                 where: { id },
-                select: ["id", "username", "createdAt"] // Don't return password
+                select: ["id", "username", "nickname", "avatar", "createdAt"],
+                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following"]
             });
-            res.send(user);
+
+            const followersCount = user.followers.length;
+            const followingCount = user.following.length;
+            const totalLikes = user.videos.reduce((acc, video) => acc + video.likes.length, 0);
+            
+            const isFollowing = user.followers.some(u => u.id === currentUserId);
+
+            res.send({ ...user, followersCount, followingCount, totalLikes, isFollowing });
         } catch (error) {
             res.status(404).send("User not found");
+        }
+    };
+
+    static getOneByUsername = async (req: Request, res: Response) => {
+        const username = req.params.username;
+        const currentUserId = res.locals.jwtPayload.userId;
+        const userRepository = AppDataSource.getRepository(User);
+        try {
+            const user = await userRepository.findOneOrFail({ 
+                where: { username },
+                select: ["id", "username", "nickname", "avatar", "createdAt"],
+                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following"]
+            });
+
+            const followersCount = user.followers.length;
+            const followingCount = user.following.length;
+            const totalLikes = user.videos.reduce((acc, video) => acc + video.likes.length, 0);
+            
+            const isFollowing = user.followers.some(u => u.id === currentUserId);
+
+            res.send({ ...user, followersCount, followingCount, totalLikes, isFollowing });
+        } catch (error) {
+            res.status(404).send("User not found");
+        }
+    };
+
+    static follow = async (req: Request, res: Response) => {
+        const userId = res.locals.jwtPayload.userId;
+        const followId = parseInt(req.params.id);
+        const userRepository = AppDataSource.getRepository(User);
+
+        if (userId === followId) {
+            res.status(400).send("Cannot follow yourself");
+            return;
+        }
+
+        try {
+            const user = await userRepository.findOneOrFail({ where: { id: userId }, relations: ["following"] });
+            const followUser = await userRepository.findOneOrFail({ where: { id: followId } });
+
+            if (!user.following.some(u => u.id === followId)) {
+                user.following.push(followUser);
+                await userRepository.save(user);
+            }
+            res.send("Followed successfully");
+        } catch (error) {
+            res.status(500).send("Error following user");
+        }
+    };
+
+    static unfollow = async (req: Request, res: Response) => {
+        const userId = res.locals.jwtPayload.userId;
+        const unfollowId = parseInt(req.params.id);
+        const userRepository = AppDataSource.getRepository(User);
+
+        try {
+            const user = await userRepository.findOneOrFail({ where: { id: userId }, relations: ["following"] });
+            user.following = user.following.filter(u => u.id !== unfollowId);
+            await userRepository.save(user);
+            res.send("Unfollowed successfully");
+        } catch (error) {
+            res.status(500).send("Error unfollowing user");
         }
     };
 
@@ -112,6 +188,18 @@ export class UserController {
             res.send(user.videos);
         } catch (error) {
             res.status(404).send("User not found");
+        }
+    };
+
+    static deleteUser = async (req: Request, res: Response) => {
+        const id = res.locals.jwtPayload.userId;
+        const userRepository = AppDataSource.getRepository(User);
+        try {
+            const user = await userRepository.findOneOrFail({ where: { id } });
+            await userRepository.remove(user);
+            res.status(204).send();
+        } catch (error) {
+            res.status(500).send("Error deleting user");
         }
     };
 }

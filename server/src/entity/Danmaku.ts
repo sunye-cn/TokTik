@@ -22,10 +22,10 @@ export class Danmaku {
     @Column({ default: 16 })
     fontSize!: number;
 
-    @ManyToOne(() => User, (user) => user.danmakus)
+    @ManyToOne(() => User, (user) => user.danmakus, { onDelete: "CASCADE" })
     user!: User;
 
-    @ManyToOne(() => Video, (video) => video.danmakus)
+    @ManyToOne(() => Video, (video) => video.danmakus, { onDelete: "CASCADE" })
     video!: Video;
 
     @CreateDateColumn()

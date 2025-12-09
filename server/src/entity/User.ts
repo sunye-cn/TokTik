@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable } from "typeorm";
 import { Video } from "./Video";
 import { Like } from "./Like";
 import { Comment } from "./Comment";
@@ -32,6 +32,13 @@ export class User {
 
     @OneToMany(() => Danmaku, (danmaku) => danmaku.user)
     danmakus!: Danmaku[];
+
+    @ManyToMany(() => User, (user) => user.following)
+    @JoinTable()
+    followers!: User[];
+
+    @ManyToMany(() => User, (user) => user.followers)
+    following!: User[];
 
     @CreateDateColumn()
     createdAt!: Date;

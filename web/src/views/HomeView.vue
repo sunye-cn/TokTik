@@ -4,33 +4,49 @@
     <div
       class="flex flex-wrap gap-4 items-center justify-between bg-background/95 backdrop-blur p-4 sticky top-14 z-30 border-b"
     >
-      <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-        <button
+      <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="
+            currentCategory = '';
+            fetchVideos();
+          "
+          :class="
+            currentCategory === ''
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-muted hover:bg-muted/80'
+          "
+        >
+          All
+        </Button>
+        <Button
           v-for="cat in categories"
           :key="cat"
+          variant="secondary"
+          size="sm"
           @click="
             currentCategory = cat;
             fetchVideos();
           "
-          class="px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
           :class="
             currentCategory === cat
-              ? 'bg-primary text-primary-foreground'
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : 'bg-muted hover:bg-muted/80'
           "
         >
-          {{ cat || "All" }}
-        </button>
+          {{ cat }}
+        </Button>
       </div>
 
       <div class="flex gap-2 items-center">
         <div class="relative">
-          <input
+          <Input
             v-model="searchQuery"
             @keyup.enter="fetchVideos"
             type="text"
             placeholder="Search..."
-            class="h-9 w-[150px] sm:w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            class="h-9 w-[150px] sm:w-[200px]"
           />
         </div>
         <select
@@ -79,6 +95,9 @@ import { ref, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "../services/api";
 import VideoCard from "@/components/VideoCard.vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { VIDEO_CATEGORIES } from "@/lib/constants";
 
 interface Video {
   id: number;
@@ -100,7 +119,7 @@ const isLoading = ref(true);
 const sortBy = ref("createdAt");
 const searchQuery = ref("");
 const currentCategory = ref("");
-const categories = ["", "Life", "Tech", "Funny", "Music", "Dance"];
+const categories = VIDEO_CATEGORIES;
 
 const fetchVideos = async () => {
   isLoading.value = true;

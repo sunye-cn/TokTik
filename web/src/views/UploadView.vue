@@ -74,11 +74,12 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { VIDEO_CATEGORIES } from "@/lib/constants";
 
 const title = ref("");
 const description = ref("");
 const category = ref("");
-const categories = ["Life", "Tech", "Funny", "Music", "Dance"];
+const categories = VIDEO_CATEGORIES;
 const file = ref<File | null>(null);
 const isLoading = ref(false);
 const router = useRouter();

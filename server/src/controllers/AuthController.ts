@@ -64,7 +64,7 @@ export class AuthController {
             { expiresIn: "1h" }
         );
 
-        res.send({ token, username: user.username, nickname: user.nickname, userId: user.id });
+        res.send({ token, username: user.username, nickname: user.nickname, userId: user.id, avatar: user.avatar });
     };
 
     static resetPassword = async (req: Request, res: Response) => {

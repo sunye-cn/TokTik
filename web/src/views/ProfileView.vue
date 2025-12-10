@@ -237,6 +237,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VIDEO_CATEGORIES } from "@/lib/constants";
+import { getAvatarUrl } from "@/lib/utils";
 
 const store = useStore();
 const route = useRoute();
@@ -259,11 +261,6 @@ const isSelf = computed(() => {
   }
   return true; // /profile route
 });
-
-const getAvatarUrl = (path: string) => {
-  if (!path) return "";
-  return `http://localhost:3000/${path}`;
-};
 
 const tabs = computed(() => {
   const t = [{ label: "Works", value: "works" }];
@@ -291,15 +288,7 @@ const editVideoForm = ref({
   description: "",
   category: "",
 });
-const categories = [
-  "Music",
-  "Dance",
-  "Gaming",
-  "Comedy",
-  "Food",
-  "Sports",
-  "Other",
-];
+const categories = VIDEO_CATEGORIES;
 
 const openEditModal = (video: any) => {
   editVideoForm.value = {

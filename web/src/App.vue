@@ -30,22 +30,19 @@
           </div>
           <nav class="flex items-center space-x-2">
             <template v-if="!isAuthenticated">
-              <router-link
-                to="/login"
-                class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
-              >
-                Login
+              <router-link to="/login">
+                <Button>Login</Button>
               </router-link>
             </template>
             <template v-else>
               <div class="relative group">
                 <button class="flex items-center gap-2 focus:outline-none">
                   <div
-                    class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border"
+                    class="h-8 w-8 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-border"
                   >
                     <img
                       v-if="currentUser?.avatar"
-                      :src="`http://localhost:3000/${currentUser.avatar}`"
+                      :src="getAvatarUrl(currentUser.avatar)"
                       class="h-full w-full object-cover"
                     />
                     <span v-else class="text-xs font-bold text-primary">{{
@@ -191,11 +188,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useStore } from "vuex";
 import { useRouter, useRoute } from "vue-router";
-import Modal from "@/components/ui/modal/Modal.vue";
+import { getAvatarUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import Modal from "@/components/ui/modal/Modal.vue";
 import api from "@/services/api";
 
 const store = useStore();

@@ -1,8 +1,6 @@
 <template>
   <div class="min-h-screen bg-background font-sans antialiased">
-    <nav
-      class="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-    >
+    <nav class="sticky top-0 z-40 w-full border-b bg-background">
       <div class="w-full px-6 flex h-14 items-center">
         <div class="mr-4 flex">
           <router-link to="/" class="mr-6 flex items-center space-x-2">
@@ -184,6 +182,26 @@
         </Button>
       </template>
     </Modal>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog
+      :open="errorDialog.open"
+      @update:open="errorDialog.open = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorDialog.message }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="errorDialog.open = false"
+            >OK</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -194,6 +212,15 @@ import { useRouter, useRoute } from "vue-router";
 import { getAvatarUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/modal/Modal.vue";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import api from "@/services/api";
 
 const store = useStore();
@@ -208,6 +235,20 @@ const showLogoutModal = ref(false);
 const showDeleteNoticeModal = ref(false);
 const showDeleteConfirmModal = ref(false);
 const deleteAgreed = ref(false);
+
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
 
 onMounted(() => {
   if (isAuthenticated.value) {
@@ -243,7 +284,7 @@ const handleDeleteConfirm = async () => {
     router.push("/login");
   } catch (error) {
     console.error("Failed to delete account:", error);
-    alert("Failed to delete account. Please try again.");
+    showError("Failed to delete account. Please try again.");
   }
 };
 </script>

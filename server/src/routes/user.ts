@@ -25,6 +25,9 @@ router.get("/:id([0-9]+)", [checkJwt], UserController.getOneById);
 router.post("/:id([0-9]+)/follow", [checkJwt], UserController.follow);
 router.delete("/:id([0-9]+)/follow", [checkJwt], UserController.unfollow);
 router.get("/:id([0-9]+)/videos", [checkJwt], UserController.getVideosByUser);
+router.get("/:id([0-9]+)/following", [checkJwt], UserController.getFollowing);
+router.get("/:id([0-9]+)/followers", [checkJwt], UserController.getFollowers);
+router.delete("/:id([0-9]+)/followers/:followerId([0-9]+)", [checkJwt], UserController.removeFollower);
 router.delete("/profile", [checkJwt], UserController.deleteUser);
 
 export default router;

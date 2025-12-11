@@ -156,6 +156,21 @@
         </div>
       </div>
     </CardContent>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog v-model:open="errorDialog.open">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+        </AlertDialogHeader>
+        <AlertDialogDescription>
+          {{ errorDialog.message }}
+        </AlertDialogDescription>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Close</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </Card>
 </template>
 
@@ -172,6 +187,15 @@ import {
   Edit,
   Trash2,
 } from "lucide-vue-next";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import api from "@/services/api";
 import { useStore } from "vuex";
 
@@ -197,18 +221,29 @@ const currentTime = ref(0);
 const duration = ref(0);
 const isLoading = ref(true);
 const hasError = ref(false);
-
-// Like state
-const isLiked = ref(false);
 const likeCount = ref(0);
+const isLiked = ref(false);
 
-const videoUrl = computed(() => {
-  if (!props.video.url) return "";
-  if (props.video.url.startsWith("http")) return props.video.url;
-  return `http://localhost:3000/${props.video.url.replace(/\\/g, "/")}`;
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
 });
 
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
+
 const currentUser = computed(() => store.getters.currentUser);
+
+const videoUrl = computed(() => {
+  if (!props.video?.url) return "";
+  return `http://localhost:3000/${props.video.url}`;
+});
 
 const updateLikeState = () => {
   likeCount.value = props.video.likes ? props.video.likes.length : 0;
@@ -293,6 +328,7 @@ const onEnded = () => {
 const handleError = () => {
   isLoading.value = false;
   hasError.value = true;
+  showError("Failed to load video. Please try again later.");
 };
 
 const formatTime = (seconds: number) => {
@@ -303,7 +339,7 @@ const formatTime = (seconds: number) => {
 
 const toggleLike = async () => {
   if (!currentUser.value) {
-    alert("Please login to like videos");
+    showError("Please login to like videos");
     return;
   }
 
@@ -319,6 +355,7 @@ const toggleLike = async () => {
     }
   } catch (error) {
     console.error("Failed to toggle like", error);
+    showError("Failed to update like. Please try again.");
   }
 };
 </script>

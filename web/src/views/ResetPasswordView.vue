@@ -39,6 +39,26 @@
         </div>
       </CardContent>
     </Card>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog
+      :open="errorDialog.open"
+      @update:open="errorDialog.open = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorDialog.message }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="errorDialog.open = false"
+            >OK</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -56,6 +76,15 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const username = ref("");
 const newPassword = ref("");
@@ -63,9 +92,23 @@ const isLoading = ref(false);
 const router = useRouter();
 const store = useStore();
 
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string, title = "Error") => {
+  errorDialog.value = {
+    open: true,
+    title: title,
+    message: message,
+  };
+};
+
 const handleResetPassword = async () => {
   if (!username.value || !newPassword.value) {
-    alert("Please fill in all fields");
+    showError("Please fill in all fields");
     return;
   }
 
@@ -75,17 +118,22 @@ const handleResetPassword = async () => {
       username: username.value,
       newPassword: newPassword.value,
     });
-    alert(
-      "Password updated successfully! Please login with your new password."
+    showError(
+      "Password updated successfully! Please login with your new password.",
+      "Success"
     );
     router.push("/login");
   } catch (error: any) {
     console.error("Reset password error:", error);
     const message =
       error.response?.data || error.message || "Failed to reset password";
-    alert(message);
+    showError(message);
   } finally {
     isLoading.value = false;
   }
 };
 </script>
+
+<style scoped>
+/* Add any component-specific styles here */
+</style>

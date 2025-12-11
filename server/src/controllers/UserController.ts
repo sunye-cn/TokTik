@@ -202,4 +202,87 @@ export class UserController {
             res.status(500).send("Error deleting user");
         }
     };
+
+    static getFollowing = async (req: Request, res: Response) => {
+        const id = parseInt(req.params.id);
+        const currentUserId = res.locals.jwtPayload.userId;
+        const userRepository = AppDataSource.getRepository(User);
+
+        try {
+            const user = await userRepository.findOneOrFail({
+                where: { id },
+                relations: ["following", "following.following"]
+            });
+
+            const followingList = user.following.map(u => {
+                // Check if u follows me (currentUserId)
+                // u.following contains people u follows.
+                const isFollowingMe = u.following.some(f => f.id === currentUserId);
+                
+                return {
+                    id: u.id,
+                    username: u.username,
+                    nickname: u.nickname,
+                    avatar: u.avatar,
+                    isMutual: isFollowingMe
+                };
+            });
+
+            res.send(followingList);
+        } catch (error) {
+            res.status(500).send("Error fetching following list");
+        }
+    };
+
+    static getFollowers = async (req: Request, res: Response) => {
+        const id = parseInt(req.params.id);
+        const currentUserId = res.locals.jwtPayload.userId;
+        const userRepository = AppDataSource.getRepository(User);
+
+        try {
+            const user = await userRepository.findOneOrFail({
+                where: { id },
+                relations: ["followers", "followers.followers"]
+            });
+
+            const followersList = user.followers.map(u => {
+                // Check if I (currentUserId) follow u.
+                // u.followers contains people who follow u.
+                const doIFollow = u.followers.some(f => f.id === currentUserId);
+
+                return {
+                    id: u.id,
+                    username: u.username,
+                    nickname: u.nickname,
+                    avatar: u.avatar,
+                    isMutual: doIFollow,
+                    isFollowing: doIFollow
+                };
+            });
+
+            res.send(followersList);
+        } catch (error) {
+            res.status(500).send("Error fetching followers list");
+        }
+    };
+
+    static removeFollower = async (req: Request, res: Response) => {
+        const userId = res.locals.jwtPayload.userId;
+        const followerId = parseInt(req.params.followerId);
+        const userRepository = AppDataSource.getRepository(User);
+
+        try {
+            const user = await userRepository.findOneOrFail({ 
+                where: { id: userId }, 
+                relations: ["followers"] 
+            });
+            
+            user.followers = user.followers.filter(u => u.id !== followerId);
+            await userRepository.save(user);
+            
+            res.send("Follower removed successfully");
+        } catch (error) {
+            res.status(500).send("Error removing follower");
+        }
+    };
 }

@@ -73,13 +73,19 @@
         <div
           class="flex items-center justify-center md:justify-start gap-6 text-sm"
         >
-          <div class="flex items-center gap-1">
+          <div
+            class="flex items-center gap-1 cursor-pointer hover:underline"
+            @click="openFollowingModal"
+          >
             <span class="font-bold">{{
               profileUser?.followingCount || 0
             }}</span>
             <span class="text-muted-foreground">Following</span>
           </div>
-          <div class="flex items-center gap-1">
+          <div
+            class="flex items-center gap-1 cursor-pointer hover:underline"
+            @click="openFollowersModal"
+          >
             <span class="font-bold">{{
               profileUser?.followersCount || 0
             }}</span>
@@ -159,9 +165,9 @@
         >
           <VideoCard
             :video="video"
-            :show-views="isSelf"
-            :show-actions="isSelf"
-            @click="$router.push(`/video/${video.id}`)"
+            :show-views="isSelf && currentTab === 'works'"
+            :show-actions="isSelf && currentTab === 'works'"
+            @click="openVideo(video)"
             @edit="openEditModal"
             @delete="deleteVideo"
           />
@@ -223,13 +229,313 @@
         </CardContent>
       </Card>
     </div>
+
+    <!-- Old Modals Removed -->
+    <!-- Connections Modal (Following & Followers) -->
+    <Modal
+      :isOpen="showConnectionsModal"
+      @close="showConnectionsModal = false"
+      :closeOnBackdropClick="true"
+    >
+      <div class="flex flex-col h-[500px]">
+        <!-- Header with Tabs -->
+        <div class="flex items-center justify-between border-b pb-4 mb-4">
+          <div class="flex gap-6">
+            <button
+              @click="switchTab('following')"
+              class="relative pb-1 transition-all"
+              :class="
+                activeConnectionTab === 'following'
+                  ? 'text-lg font-bold text-foreground'
+                  : 'text-base font-medium text-muted-foreground hover:text-foreground'
+              "
+            >
+              Following ({{ followingList.length }})
+              <span
+                v-if="activeConnectionTab === 'following'"
+                class="absolute bottom-0 left-0 h-[2px] w-full bg-primary"
+              ></span>
+            </button>
+            <button
+              @click="switchTab('followers')"
+              class="relative pb-1 transition-all"
+              :class="
+                activeConnectionTab === 'followers'
+                  ? 'text-lg font-bold text-foreground'
+                  : 'text-base font-medium text-muted-foreground hover:text-foreground'
+              "
+            >
+              Followers ({{ followersList.length }})
+              <span
+                v-if="activeConnectionTab === 'followers'"
+                class="absolute bottom-0 left-0 h-[2px] w-full bg-primary"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search and Sort -->
+        <div class="flex gap-2 mb-4">
+          <Input
+            v-model="userListSearch"
+            placeholder="Search users..."
+            class="flex-1"
+          />
+          <select
+            v-if="activeConnectionTab === 'following'"
+            v-model="userListSort"
+            class="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="default">Default</option>
+            <option value="recent">Recent</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+
+        <!-- List Content -->
+        <div class="flex-1 overflow-y-auto pr-2">
+          <!-- Following List -->
+          <div v-if="activeConnectionTab === 'following'" class="space-y-4">
+            <div v-if="isFollowingLoading" class="space-y-4">
+              <div
+                v-for="n in 5"
+                :key="n"
+                class="flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <Skeleton class="h-10 w-10 rounded-full" />
+                  <div class="space-y-2">
+                    <Skeleton class="h-4 w-24" />
+                    <Skeleton class="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton class="h-8 w-20" />
+              </div>
+            </div>
+            <template v-else>
+              <div
+                v-for="user in filteredFollowingList"
+                :key="user.id"
+                class="flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-muted"
+                  >
+                    <img
+                      v-if="user.avatar"
+                      :src="getAvatarUrl(user.avatar)"
+                      class="h-full w-full object-cover"
+                    />
+                    <span
+                      v-else
+                      class="text-lg font-bold text-muted-foreground"
+                    >
+                      {{
+                        (user.nickname || user.username)
+                          ?.charAt(0)
+                          .toUpperCase()
+                      }}
+                    </span>
+                  </div>
+                  <div>
+                    <div class="font-medium">
+                      {{ user.nickname || user.username }}
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      @{{ user.username }}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  @click="unfollowUserInList(user)"
+                >
+                  {{ user.isMutual ? "Mutual Follow" : "Following" }}
+                </Button>
+              </div>
+              <div
+                v-if="filteredFollowingList.length === 0"
+                class="py-8 text-center text-muted-foreground"
+              >
+                No users found
+              </div>
+            </template>
+          </div>
+
+          <!-- Followers List -->
+          <div v-else class="space-y-4">
+            <div v-if="isFollowersLoading" class="space-y-4">
+              <div
+                v-for="n in 5"
+                :key="n"
+                class="flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <Skeleton class="h-10 w-10 rounded-full" />
+                  <div class="space-y-2">
+                    <Skeleton class="h-4 w-24" />
+                    <Skeleton class="h-3 w-16" />
+                  </div>
+                </div>
+                <Skeleton class="h-8 w-20" />
+              </div>
+            </div>
+            <template v-else>
+              <div
+                v-for="user in filteredFollowersList"
+                :key="user.id"
+                class="flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-muted"
+                  >
+                    <img
+                      v-if="user.avatar"
+                      :src="getAvatarUrl(user.avatar)"
+                      class="h-full w-full object-cover"
+                    />
+                    <span
+                      v-else
+                      class="text-lg font-bold text-muted-foreground"
+                    >
+                      {{
+                        (user.nickname || user.username)
+                          ?.charAt(0)
+                          .toUpperCase()
+                      }}
+                    </span>
+                  </div>
+                  <div>
+                    <div class="font-medium">
+                      {{ user.nickname || user.username }}
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      @{{ user.username }}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Button
+                    v-if="user.isMutual"
+                    variant="secondary"
+                    size="sm"
+                    @click="unfollowUserInList(user)"
+                  >
+                    Mutual Follow
+                  </Button>
+                  <Button
+                    v-else-if="user.isFollowing"
+                    variant="secondary"
+                    size="sm"
+                    @click="unfollowUserInList(user)"
+                  >
+                    Following
+                  </Button>
+                  <Button
+                    v-else
+                    variant="default"
+                    size="sm"
+                    @click="followUserInList(user)"
+                  >
+                    Follow Back
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    @click="removeFollower(user.id)"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+              <div
+                v-if="filteredFollowersList.length === 0"
+                class="py-8 text-center text-muted-foreground"
+              >
+                No users found
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Remove Follower Confirmation Modal -->
+    <AlertDialog
+      :open="showRemoveConfirmModal"
+      @update:open="showRemoveConfirmModal = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove Follower</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to remove this follower? They will no longer
+            follow you.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="showRemoveConfirmModal = false"
+            >Cancel</AlertDialogCancel
+          >
+          <AlertDialogAction @click="confirmRemoveFollower"
+            >Remove</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog
+      :open="isDeleteVideoDialogOpen"
+      @update:open="isDeleteVideoDialogOpen = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Video</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this video? This action cannot be
+            undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="isDeleteVideoDialogOpen = false"
+            >Cancel</AlertDialogCancel
+          >
+          <AlertDialogAction @click="confirmDeleteVideo"
+            >Delete</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog
+      :open="errorDialog.open"
+      @update:open="errorDialog.open = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorDialog.message }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="errorDialog.open = false"
+            >OK</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
 import { useStore } from "vuex";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 import VideoCard from "@/components/VideoCard.vue";
 import { Button } from "@/components/ui/button";
@@ -237,11 +543,24 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import Modal from "@/components/ui/modal/Modal.vue";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { VIDEO_CATEGORIES } from "@/lib/constants";
 import { getAvatarUrl } from "@/lib/utils";
 
 const store = useStore();
 const route = useRoute();
+const router = useRouter();
 
 const profileUser = ref<any>(null);
 const isFollowing = ref(false);
@@ -282,6 +601,8 @@ const editNickname = ref("");
 
 // Video Editing State
 const isVideoEditing = ref(false);
+const videoToDelete = ref<any>(null);
+const isDeleteVideoDialogOpen = ref(false);
 const editVideoForm = ref({
   id: 0,
   title: "",
@@ -289,6 +610,31 @@ const editVideoForm = ref({
   category: "",
 });
 const categories = VIDEO_CATEGORIES;
+
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
+
+const openVideo = (video: any) => {
+  if (isSelf.value && currentTab.value === "works") {
+    router.push({
+      path: `/video/${video.id}`,
+      query: { showAnalysis: "true" },
+    });
+  } else {
+    router.push(`/video/${video.id}`);
+  }
+};
 
 const openEditModal = (video: any) => {
   editVideoForm.value = {
@@ -310,17 +656,24 @@ const saveVideoEdit = async () => {
     isVideoEditing.value = false;
     fetchData(); // Refresh data
   } catch (error) {
-    alert("Failed to update video");
+    showError("Failed to update video");
   }
 };
 
-const deleteVideo = async (video: any) => {
-  if (!confirm("Are you sure you want to delete this video?")) return;
+const deleteVideo = (video: any) => {
+  videoToDelete.value = video;
+  isDeleteVideoDialogOpen.value = true;
+};
+
+const confirmDeleteVideo = async () => {
+  if (!videoToDelete.value) return;
   try {
-    await api.delete(`/videos/${video.id}`);
+    await api.delete(`/videos/${videoToDelete.value.id}`);
     fetchData(); // Refresh data
+    videoToDelete.value = null;
+    isDeleteVideoDialogOpen.value = false;
   } catch (error) {
-    alert("Failed to delete video");
+    showError("Failed to delete video");
   }
 };
 
@@ -412,7 +765,7 @@ const toggleFollow = async () => {
     }
   } catch (error) {
     console.error("Failed to toggle follow", error);
-    alert("Failed to update follow status");
+    showError("Failed to update follow status");
   }
 };
 
@@ -434,7 +787,7 @@ const saveProfile = async () => {
     profileUser.value = { ...profileUser.value, ...res.data };
     isEditing.value = false;
   } catch (error) {
-    alert("Failed to update profile");
+    showError("Failed to update profile");
   }
 };
 
@@ -450,7 +803,7 @@ const handleAvatarUpload = async (event: Event) => {
     store.commit("update_user", res.data);
     profileUser.value = { ...profileUser.value, ...res.data };
   } catch (error) {
-    alert("Failed to upload avatar");
+    showError("Failed to upload avatar");
   }
 };
 
@@ -502,4 +855,174 @@ watch(isSelf, (newVal) => {
 });
 
 watch(() => route.params, fetchData);
+
+const showConnectionsModal = ref(false);
+const activeConnectionTab = ref("following"); // 'following' | 'followers'
+const followingList = ref<any[]>([]);
+const followersList = ref<any[]>([]);
+const isFollowingLoading = ref(false);
+const isFollowersLoading = ref(false);
+const userListSearch = ref("");
+const userListSort = ref("default");
+
+const fetchFollowing = async () => {
+  if (!profileUser.value) return;
+  isFollowingLoading.value = true;
+  try {
+    const res = await api.get(`/users/${profileUser.value.id}/following`);
+    followingList.value = res.data;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isFollowingLoading.value = false;
+  }
+};
+
+const fetchFollowers = async () => {
+  if (!profileUser.value) return;
+  isFollowersLoading.value = true;
+  try {
+    const res = await api.get(`/users/${profileUser.value.id}/followers`);
+    followersList.value = res.data;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isFollowersLoading.value = false;
+  }
+};
+
+const openFollowingModal = async () => {
+  if (!profileUser.value) return;
+  showConnectionsModal.value = true;
+  activeConnectionTab.value = "following";
+  userListSearch.value = "";
+  userListSort.value = "default";
+  await fetchFollowing();
+  // Also fetch followers to have data ready if user switches tab
+  fetchFollowers();
+};
+
+const openFollowersModal = async () => {
+  if (!profileUser.value) return;
+  showConnectionsModal.value = true;
+  activeConnectionTab.value = "followers";
+  userListSearch.value = "";
+  await fetchFollowers();
+  // Also fetch following
+  fetchFollowing();
+};
+
+const switchTab = (tab: string) => {
+  activeConnectionTab.value = tab;
+  userListSearch.value = "";
+  userListSort.value = "default";
+};
+
+const followUserInList = async (user: any) => {
+  try {
+    await api.post(`/users/${user.id}/follow`);
+    user.isFollowing = true;
+    user.isMutual = true;
+
+    if (isSelf.value) {
+      profileUser.value.followingCount++;
+      // Add to following list if not present
+      if (!followingList.value.find((u) => u.id === user.id)) {
+        followingList.value.push({
+          ...user,
+          isFollowing: true,
+          isMutual: true,
+        });
+      }
+
+      // Update follower list status if exists
+      const follower = followersList.value.find((u) => u.id === user.id);
+      if (follower) {
+        follower.isFollowing = true;
+        follower.isMutual = true;
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const unfollowUserInList = async (user: any) => {
+  try {
+    await api.delete(`/users/${user.id}/follow`);
+    user.isFollowing = false;
+    user.isMutual = false;
+
+    if (isSelf.value) {
+      profileUser.value.followingCount--;
+      // Remove from following list
+      followingList.value = followingList.value.filter((u) => u.id !== user.id);
+
+      // Update follower list status if exists
+      const follower = followersList.value.find((u) => u.id === user.id);
+      if (follower) {
+        follower.isFollowing = false;
+        follower.isMutual = false;
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const showRemoveConfirmModal = ref(false);
+const followerToRemoveId = ref<number | null>(null);
+
+const removeFollower = (followerId: number) => {
+  followerToRemoveId.value = followerId;
+  showRemoveConfirmModal.value = true;
+};
+
+const confirmRemoveFollower = async () => {
+  if (!profileUser.value || !followerToRemoveId.value) return;
+  try {
+    await api.delete(
+      `/users/${profileUser.value.id}/followers/${followerToRemoveId.value}`
+    );
+    followersList.value = followersList.value.filter(
+      (u) => u.id !== followerToRemoveId.value
+    );
+    profileUser.value.followersCount--;
+    showRemoveConfirmModal.value = false;
+    followerToRemoveId.value = null;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const filteredFollowingList = computed(() => {
+  let list = [...followingList.value];
+  if (userListSearch.value) {
+    const q = userListSearch.value.toLowerCase();
+    list = list.filter(
+      (u) =>
+        (u.nickname && u.nickname.toLowerCase().includes(q)) ||
+        u.username.toLowerCase().includes(q)
+    );
+  }
+  if (userListSort.value === "recent") {
+    list.sort((a, b) => b.id - a.id);
+  } else if (userListSort.value === "oldest") {
+    list.sort((a, b) => a.id - b.id);
+  }
+  return list;
+});
+
+const filteredFollowersList = computed(() => {
+  let list = [...followersList.value];
+  if (userListSearch.value) {
+    const q = userListSearch.value.toLowerCase();
+    list = list.filter(
+      (u) =>
+        (u.nickname && u.nickname.toLowerCase().includes(q)) ||
+        u.username.toLowerCase().includes(q)
+    );
+  }
+  return list;
+});
 </script>

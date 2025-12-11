@@ -9,7 +9,11 @@ export class VideoController {
 
     static listAll = async (req: Request, res: Response) => {
         const videoRepository = AppDataSource.getRepository(Video);
-        const { sort, category, search } = req.query;
+        const { sort, category, search, page, limit } = req.query;
+
+        const pageNum = parseInt(page as string) || 1;
+        const limitNum = parseInt(limit as string) || 10;
+        const skip = (pageNum - 1) * limitNum;
 
         let order: any = { createdAt: "DESC" };
         if (sort === "views") order = { views: "DESC" };
@@ -43,7 +47,9 @@ export class VideoController {
         const videos = await videoRepository.find({
             where,
             relations: ["user", "likes", "likes.user", "comments", "danmakus"],
-            order
+            order,
+            skip,
+            take: limitNum
         });
         
         // If sorting by likes count is needed properly, we might need query builder, 

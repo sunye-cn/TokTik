@@ -56,6 +56,22 @@
         </form>
       </CardContent>
     </Card>
+
+    <AlertDialog v-model:open="errorDialog.open" class="z-50">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+        </AlertDialogHeader>
+        <AlertDialogDescription>
+          {{ errorDialog.message }}
+        </AlertDialogDescription>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="errorDialog.open = false" class="w-full">
+            Close
+          </AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -74,6 +90,15 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { VIDEO_CATEGORIES } from "@/lib/constants";
 
 const title = ref("");
@@ -83,6 +108,20 @@ const categories = VIDEO_CATEGORIES;
 const file = ref<File | null>(null);
 const isLoading = ref(false);
 const router = useRouter();
+
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -109,7 +148,7 @@ const handleUpload = async () => {
     });
     router.push("/");
   } catch (error) {
-    alert("Upload failed");
+    showError("Upload failed");
   } finally {
     isLoading.value = false;
   }

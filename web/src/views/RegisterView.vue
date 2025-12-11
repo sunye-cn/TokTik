@@ -62,6 +62,26 @@
         </Button>
       </template>
     </Modal>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog
+      :open="errorDialog.open"
+      @update:open="errorDialog.open = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorDialog.message }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="errorDialog.open = false"
+            >OK</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -80,6 +100,15 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import Modal from "@/components/ui/modal/Modal.vue";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const username = ref("");
 const password = ref("");
@@ -87,6 +116,20 @@ const isLoading = ref(false);
 const showSuccessModal = ref(false);
 const store = useStore();
 const router = useRouter();
+
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
 
 const handleRegister = async () => {
   isLoading.value = true;
@@ -105,7 +148,7 @@ const handleRegister = async () => {
     console.error("Registration error:", error);
     const message =
       error.response?.data || error.message || "Registration failed";
-    alert(message);
+    showError(message);
   } finally {
     isLoading.value = false;
   }

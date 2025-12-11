@@ -10,7 +10,7 @@
           size="sm"
           @click="
             currentCategory = '';
-            fetchVideos();
+            fetchVideos(true);
           "
           :class="
             currentCategory === ''
@@ -27,7 +27,7 @@
           size="sm"
           @click="
             currentCategory = cat;
-            fetchVideos();
+            fetchVideos(true);
           "
           :class="
             currentCategory === cat
@@ -43,7 +43,7 @@
         <div class="relative">
           <Input
             v-model="searchQuery"
-            @keyup.enter="fetchVideos"
+            @keyup.enter="fetchVideos(true)"
             type="text"
             placeholder="Search..."
             class="h-9 w-[150px] sm:w-[200px]"
@@ -51,7 +51,7 @@
         </div>
         <select
           v-model="sortBy"
-          @change="fetchVideos"
+          @change="fetchVideos(true)"
           class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           <option value="createdAt">Latest</option>
@@ -63,29 +63,48 @@
     </div>
 
     <div
-      v-if="isLoading"
+      v-if="isLoading && videos.length === 0"
       class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
     >
       <div v-for="n in 8" :key="n" class="flex flex-col space-y-3">
-        <div class="h-[250px] w-full rounded-xl bg-muted animate-pulse"></div>
+        <Skeleton class="h-[250px] w-full rounded-xl" />
         <div class="space-y-2">
-          <div class="h-4 w-[250px] bg-muted animate-pulse rounded"></div>
-          <div class="h-4 w-[200px] bg-muted animate-pulse rounded"></div>
+          <Skeleton class="h-4 w-[250px]" />
+          <Skeleton class="h-4 w-[200px]" />
         </div>
       </div>
     </div>
 
-    <div
-      v-else
-      class="columns-1 gap-4 sm:columns-2 md:columns-3 lg:columns-4 space-y-4"
-    >
-      <VideoCard
-        v-for="video in videos"
-        :key="video.id"
-        :video="video"
-        :show-views="false"
-        @click="openVideo(video)"
-      />
+    <div v-else class="space-y-8">
+      <div
+        class="columns-1 gap-4 sm:columns-2 md:columns-3 lg:columns-4 space-y-4"
+      >
+        <div v-for="video in videos" :key="video.id" class="break-inside-avoid">
+          <VideoCard
+            :video="video"
+            :show-views="false"
+            @click="openVideo(video)"
+          />
+        </div>
+      </div>
+
+      <!-- Load More Trigger -->
+      <div ref="loadMoreTrigger" class="h-10 flex items-center justify-center">
+        <div
+          v-if="isLoading"
+          class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"
+        ></div>
+        <span
+          v-else-if="!hasMore && videos.length > 0"
+          class="text-muted-foreground text-sm"
+          >No more videos</span
+        >
+        <span
+          v-else-if="!hasMore && videos.length === 0"
+          class="text-muted-foreground text-sm"
+          >No videos found</span
+        >
+      </div>
     </div>
   </div>
 </template>
@@ -97,6 +116,7 @@ import api from "../services/api";
 import VideoCard from "@/components/VideoCard.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { VIDEO_CATEGORIES } from "@/lib/constants";
 
 interface Video {
@@ -115,21 +135,55 @@ interface Video {
 const router = useRouter();
 const route = useRoute();
 const videos = ref<Video[]>([]);
-const isLoading = ref(true);
+const isLoading = ref(false);
 const sortBy = ref("createdAt");
 const searchQuery = ref("");
 const currentCategory = ref("");
 const categories = VIDEO_CATEGORIES;
 
-const fetchVideos = async () => {
+const page = ref(1);
+const limit = ref(12);
+const hasMore = ref(true);
+const loadMoreTrigger = ref<HTMLElement | null>(null);
+
+const fetchVideos = async (reset = false) => {
+  if (reset) {
+    page.value = 1;
+    videos.value = [];
+    hasMore.value = true;
+  }
+
+  if (!hasMore.value && !reset) return;
+
   isLoading.value = true;
   try {
-    const params: any = { sort: sortBy.value };
+    const params: any = {
+      sort: sortBy.value,
+      page: page.value,
+      limit: limit.value,
+    };
     if (currentCategory.value) params.category = currentCategory.value;
     if (searchQuery.value) params.search = searchQuery.value;
 
     const response = await api.get("/videos", { params });
-    videos.value = response.data;
+
+    // Assuming the API returns an array of videos.
+    // If the API returns { data: [], total: ... }, adjust accordingly.
+    // Based on previous context, it seems to return an array directly or we need to check.
+    // Let's assume it returns an array for now, and if length < limit, hasMore = false.
+
+    const newVideos = response.data;
+    if (newVideos.length < limit.value) {
+      hasMore.value = false;
+    }
+
+    if (reset) {
+      videos.value = newVideos;
+    } else {
+      videos.value = [...videos.value, ...newVideos];
+    }
+
+    page.value++;
   } catch (error) {
     console.error(error);
   } finally {
@@ -141,19 +195,38 @@ const openVideo = (video: Video) => {
   router.push(`/video/${video.id}`);
 };
 
+let observer: IntersectionObserver | null = null;
+
 onMounted(() => {
   if (route.query.category) {
     currentCategory.value = route.query.category as string;
   }
-  fetchVideos();
+  fetchVideos(true);
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
+        fetchVideos();
+      }
+    },
+    { threshold: 0.1 }
+  );
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value);
+  }
+});
+
+watch(loadMoreTrigger, (el) => {
+  if (el && observer) observer.observe(el);
 });
 
 watch(
   () => route.query.category,
   (newCategory) => {
-    if (newCategory) {
+    if (newCategory !== undefined) {
       currentCategory.value = newCategory as string;
-      fetchVideos();
+      fetchVideos(true);
     }
   }
 );

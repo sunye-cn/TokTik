@@ -66,6 +66,28 @@
         </Button>
       </template>
     </Modal>
+
+    <AlertDialog
+      :open="showErrorDialog"
+      @update:open="showErrorDialog = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Login Failed</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorMessage }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="showErrorDialog = false">
+            Close
+          </AlertDialogCancel>
+          <AlertDialogAction @click="$router.push('/register')">
+            Register Now
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -83,12 +105,24 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Modal from "@/components/ui/modal/Modal.vue";
 
 const username = ref("");
 const password = ref("");
 const isLoading = ref(false);
 const showSuccessModal = ref(false);
+const showErrorDialog = ref(false);
+const errorMessage = ref("");
 const store = useStore();
 const router = useRouter();
 
@@ -103,7 +137,8 @@ const handleLogin = async () => {
   } catch (error: any) {
     console.error("Login error:", error);
     const message = error.response?.data || error.message || "Login failed";
-    alert(message);
+    errorMessage.value = message;
+    showErrorDialog.value = true;
   } finally {
     isLoading.value = false;
   }

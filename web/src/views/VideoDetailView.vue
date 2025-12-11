@@ -11,6 +11,8 @@
           :src="videoUrl"
           class="w-full h-full object-contain"
           autoplay
+          disablePictureInPicture
+          controlsList="nodownload noplaybackrate"
           @ended="onEnded"
           @timeupdate="onTimeUpdate"
           @loadedmetadata="onLoadedMetadata"
@@ -293,10 +295,10 @@
         </div>
 
         <button
-          class="absolute top-4 left-4 text-white bg-black/50 p-2 rounded-full hover:bg-black/70 z-20"
+          class="absolute top-4 left-4 text-white bg-black/50 p-2 rounded-full hover:bg-black/70 z-20 transition-all hover:scale-110"
           @click="$router.back()"
         >
-          Back
+          <X class="h-8 w-8" />
         </button>
 
         <!-- Like Button Overlay -->
@@ -371,6 +373,15 @@
               @click="toggleFollowAuthor"
             >
               {{ isFollowingAuthor ? "Unfollow" : "Follow" }}
+            </Button>
+            <Button
+              v-if="showAnalysisButton"
+              variant="ghost"
+              size="icon"
+              class="ml-2"
+              @click="showAnalysisModal = true"
+            >
+              <PieChart class="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -467,6 +478,179 @@
         </div>
       </div>
     </div>
+
+    <!-- Data Analysis Modal -->
+    <div
+      v-if="showAnalysisModal"
+      class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+      @click.self="showAnalysisModal = false"
+    >
+      <div
+        class="max-h-[90vh] w-[800px] max-w-[90%] overflow-y-auto rounded-lg bg-background p-6 shadow-xl"
+      >
+        <div class="mb-6 flex items-center justify-between">
+          <h2 class="text-xl font-bold">Data Analysis</h2>
+          <button
+            @click="showAnalysisModal = false"
+            class="text-muted-foreground hover:text-foreground"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="mb-6 grid grid-cols-3 gap-4">
+          <Card
+            @click="selectedMetric = 'views'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary': selectedMetric === 'views',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                Play Count
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">{{ video?.views || 0 }}</div>
+            </CardContent>
+          </Card>
+          <Card
+            @click="selectedMetric = 'likes'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary': selectedMetric === 'likes',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                Like Count
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">{{ likeCount }}</div>
+            </CardContent>
+          </Card>
+          <Card
+            @click="selectedMetric = 'comments'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary':
+                selectedMetric === 'comments',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                Comment Count
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">{{ comments.length }}</div>
+            </CardContent>
+          </Card>
+          <Card
+            @click="selectedMetric = 'danmakus'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary':
+                selectedMetric === 'danmakus',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                Danmaku Count
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">{{ danmakus.length }}</div>
+            </CardContent>
+          </Card>
+          <Card
+            @click="selectedMetric = 'followers'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary':
+                selectedMetric === 'followers',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                New Followers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">
+                {{ newFollowersCount }}
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            @click="selectedMetric = 'fanView'"
+            class="cursor-pointer transition-all hover:bg-accent"
+            :class="{
+              'border-primary ring-1 ring-primary':
+                selectedMetric === 'fanView',
+            }"
+          >
+            <CardHeader class="pb-2">
+              <CardTitle class="text-sm font-medium text-muted-foreground">
+                Fan View %
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="text-2xl font-bold">{{ fanViewPercent }}%</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div class="h-[300px] w-full">
+          <Line :data="chartData" :options="chartOptions" />
+        </div>
+      </div>
+    </div>
+
+    <AlertDialog
+      :open="isDeleteCommentDialogOpen"
+      @update:open="isDeleteCommentDialogOpen = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Comment</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this comment? This action cannot be
+            undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="isDeleteCommentDialogOpen = false"
+            >Cancel</AlertDialogCancel
+          >
+          <AlertDialogAction @click="confirmDeleteComment"
+            >Delete</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog
+      :open="errorDialog.open"
+      @update:open="errorDialog.open = $event"
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ errorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorDialog.message }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="errorDialog.open = false"
+            >OK</AlertDialogAction
+          >
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -477,7 +661,39 @@ import { useStore } from "vuex";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Settings, Play, Pause } from "lucide-vue-next";
+import { Heart, Settings, Play, Pause, PieChart, X } from "lucide-vue-next";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line } from "vue-chartjs";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const route = useRoute();
 const router = useRouter();
@@ -489,10 +705,140 @@ const currentTime = ref(0);
 const duration = ref(0);
 const progress = ref(0);
 const isDragging = ref(false);
+const showAnalysisModal = ref(false);
+const selectedMetric = ref("views");
+const newFollowersCount = ref(Math.floor(Math.random() * 10));
+const fanViewPercent = ref((Math.random() * 100).toFixed(2));
+
+const showAnalysisButton = computed(() => {
+  return isOwner.value && route.query.showAnalysis === "true";
+});
+
+const errorDialog = ref({
+  open: false,
+  title: "Error",
+  message: "",
+});
+
+const showError = (message: string) => {
+  errorDialog.value = {
+    open: true,
+    title: "Error",
+    message: message,
+  };
+};
+
+const generateHistory = (
+  current: number,
+  min: number,
+  max: number,
+  count: number
+) => {
+  const history = [];
+  for (let i = 0; i < count - 1; i++) {
+    history.push(Math.floor(Math.random() * (max - min + 1)) + min);
+  }
+  history.push(current);
+  return history;
+};
+
+// Chart Data
+const chartData = computed(() => {
+  if (!video.value) return { labels: [], datasets: [] };
+
+  const endDate = new Date();
+  const startDate = new Date(video.value.createdAt);
+  const daysDiff = Math.floor(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)
+  );
+  // Show at least 1 day, max 7 days
+  const numDays = Math.min(Math.max(daysDiff + 1, 1), 7);
+
+  const labels = [];
+  for (let i = numDays - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    labels.push(`${d.getMonth() + 1}-${d.getDate()}`);
+  }
+
+  let label = "Views";
+  let data: number[] = [];
+
+  switch (selectedMetric.value) {
+    case "views":
+      label = "Play Count";
+      // Generate mock history for views ending in current views
+      data = generateHistory(video.value.views || 0, 0, 100, numDays);
+      break;
+    case "likes":
+      label = "Like Count";
+      data = generateHistory(likeCount.value, 0, 10, numDays);
+      break;
+    case "comments":
+      label = "Comment Count";
+      data = generateHistory(comments.value.length, 0, 5, numDays);
+      break;
+    case "danmakus":
+      label = "Danmaku Count";
+      data = generateHistory(danmakus.value.length, 0, 8, numDays);
+      break;
+    case "followers":
+      label = "New Followers";
+      data = generateHistory(newFollowersCount.value, 0, 5, numDays);
+      break;
+    case "fanView":
+      label = "Fan View %";
+      data = generateHistory(
+        parseFloat(fanViewPercent.value),
+        50,
+        100,
+        numDays
+      );
+      break;
+  }
+
+  return {
+    labels,
+    datasets: [
+      {
+        label,
+        backgroundColor: "#3b82f6",
+        borderColor: "#3b82f6",
+        data,
+        tension: 0.4,
+      },
+    ],
+  };
+});
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      grid: {
+        color: "#f3f4f6",
+      },
+    },
+    x: {
+      grid: {
+        display: false,
+      },
+    },
+  },
+};
 
 // Comments State
 const comments = ref<any[]>([]);
 const newComment = ref("");
+const commentToDeleteId = ref<number | null>(null);
+const isDeleteCommentDialogOpen = ref(false);
 
 // Danmaku State
 const danmakus = ref<any[]>([]);
@@ -643,7 +989,7 @@ const sendDanmaku = async () => {
     newDanmaku.value = "";
   } catch (error) {
     console.error("Failed to send danmaku:", error);
-    alert("Failed to send danmaku");
+    showError("Failed to send danmaku");
   }
 };
 
@@ -707,17 +1053,26 @@ const postComment = async () => {
     comments.value.unshift(res.data);
     newComment.value = "";
   } catch (error) {
-    alert("Failed to post comment");
+    showError("Failed to post comment");
   }
 };
 
-const deleteComment = async (commentId: number) => {
-  if (!confirm("Delete this comment?")) return;
+const deleteComment = (commentId: number) => {
+  commentToDeleteId.value = commentId;
+  isDeleteCommentDialogOpen.value = true;
+};
+
+const confirmDeleteComment = async () => {
+  if (!commentToDeleteId.value) return;
   try {
-    await api.delete(`/videos/comments/${commentId}`);
-    comments.value = comments.value.filter((c) => c.id !== commentId);
+    await api.delete(`/videos/comments/${commentToDeleteId.value}`);
+    comments.value = comments.value.filter(
+      (c) => c.id !== commentToDeleteId.value
+    );
+    commentToDeleteId.value = null;
+    isDeleteCommentDialogOpen.value = false;
   } catch (error) {
-    alert("Failed to delete comment");
+    showError("Failed to delete comment");
   }
 };
 
@@ -823,7 +1178,7 @@ const toggleFollowAuthor = async () => {
     }
   } catch (error) {
     console.error("Failed to toggle follow", error);
-    alert("Failed to update follow status");
+    showError("Failed to update follow status");
   }
 };
 
@@ -841,7 +1196,7 @@ const updateLikeState = () => {
 
 const toggleLike = async () => {
   if (!currentUser.value) {
-    alert("Please login to like videos");
+    showError("Please login to like videos");
     return;
   }
   if (!video.value) return;

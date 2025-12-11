@@ -76,35 +76,20 @@
     </div>
 
     <div v-else class="space-y-8">
-      <div
-        class="columns-1 gap-4 sm:columns-2 md:columns-3 lg:columns-4 space-y-4"
+      <MasonryGrid
+        :items="videos"
+        :is-loading="isLoading"
+        :has-more="hasMore"
+        @loadMore="fetchVideos(false)"
       >
-        <div v-for="video in videos" :key="video.id" class="break-inside-avoid">
+        <template #item="{ item }">
           <VideoCard
-            :video="video"
+            :video="item"
             :show-views="false"
-            @click="openVideo(video)"
+            @click="openVideo(item)"
           />
-        </div>
-      </div>
-
-      <!-- Load More Trigger -->
-      <div ref="loadMoreTrigger" class="h-10 flex items-center justify-center">
-        <div
-          v-if="isLoading"
-          class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"
-        ></div>
-        <span
-          v-else-if="!hasMore && videos.length > 0"
-          class="text-muted-foreground text-sm"
-          >No more videos</span
-        >
-        <span
-          v-else-if="!hasMore && videos.length === 0"
-          class="text-muted-foreground text-sm"
-          >No videos found</span
-        >
-      </div>
+        </template>
+      </MasonryGrid>
     </div>
   </div>
 </template>
@@ -114,6 +99,7 @@ import { ref, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "../services/api";
 import VideoCard from "@/components/VideoCard.vue";
+import MasonryGrid from "@/components/MasonryGrid.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -144,7 +130,6 @@ const categories = VIDEO_CATEGORIES;
 const page = ref(1);
 const limit = ref(12);
 const hasMore = ref(true);
-const loadMoreTrigger = ref<HTMLElement | null>(null);
 
 const fetchVideos = async (reset = false) => {
   if (reset) {
@@ -166,11 +151,6 @@ const fetchVideos = async (reset = false) => {
     if (searchQuery.value) params.search = searchQuery.value;
 
     const response = await api.get("/videos", { params });
-
-    // Assuming the API returns an array of videos.
-    // If the API returns { data: [], total: ... }, adjust accordingly.
-    // Based on previous context, it seems to return an array directly or we need to check.
-    // Let's assume it returns an array for now, and if length < limit, hasMore = false.
 
     const newVideos = response.data;
     if (newVideos.length < limit.value) {
@@ -195,30 +175,11 @@ const openVideo = (video: Video) => {
   router.push(`/video/${video.id}`);
 };
 
-let observer: IntersectionObserver | null = null;
-
 onMounted(() => {
   if (route.query.category) {
     currentCategory.value = route.query.category as string;
   }
   fetchVideos(true);
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting && hasMore.value && !isLoading.value) {
-        fetchVideos();
-      }
-    },
-    { threshold: 0.1 }
-  );
-
-  if (loadMoreTrigger.value) {
-    observer.observe(loadMoreTrigger.value);
-  }
-});
-
-watch(loadMoreTrigger, (el) => {
-  if (el && observer) observer.observe(el);
 });
 
 watch(

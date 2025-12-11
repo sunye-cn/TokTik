@@ -154,41 +154,25 @@
     </div>
 
     <div v-else class="space-y-8">
-      <!-- Videos Grid (Masonry) -->
-      <div
-        class="columns-1 gap-4 sm:columns-2 md:columns-3 lg:columns-4 space-y-4"
+      <MasonryGrid
+        :items="visibleVideos"
+        :is-loading="false"
+        :has-more="hasMore"
+        @loadMore="loadMore"
       >
-        <div
-          v-for="video in visibleVideos"
-          :key="video.id"
-          class="relative group break-inside-avoid"
-        >
-          <VideoCard
-            :video="video"
-            :show-views="isSelf && currentTab === 'works'"
-            :show-actions="isSelf && currentTab === 'works'"
-            @click="openVideo(video)"
-            @edit="openEditModal"
-            @delete="deleteVideo"
-          />
-        </div>
-      </div>
-
-      <!-- Load More Trigger -->
-      <div ref="loadMoreTrigger" class="h-10 flex items-center justify-center">
-        <div
-          v-if="hasMore"
-          class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"
-        ></div>
-        <span
-          v-else-if="visibleVideos.length > 0"
-          class="text-muted-foreground text-sm"
-          >No more videos</span
-        >
-        <span v-else class="text-muted-foreground text-sm"
-          >No videos found</span
-        >
-      </div>
+        <template #item="{ item }">
+          <div class="relative group">
+            <VideoCard
+              :video="item"
+              :show-views="isSelf && currentTab === 'works'"
+              :show-actions="isSelf && currentTab === 'works'"
+              @click="openVideo(item)"
+              @edit="openEditModal"
+              @delete="deleteVideo"
+            />
+          </div>
+        </template>
+      </MasonryGrid>
     </div>
 
     <!-- Edit Video Modal -->
@@ -538,6 +522,7 @@ import { useStore } from "vuex";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 import VideoCard from "@/components/VideoCard.vue";
+import MasonryGrid from "@/components/MasonryGrid.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -809,7 +794,6 @@ const handleAvatarUpload = async (event: Event) => {
 
 const isLoading = ref(false);
 const displayLimit = ref(12);
-const loadMoreTrigger = ref<HTMLElement | null>(null);
 
 const visibleVideos = computed(() => {
   return filteredVideos.value.slice(0, displayLimit.value);
@@ -819,11 +803,9 @@ const hasMore = computed(() => {
   return visibleVideos.value.length < filteredVideos.value.length;
 });
 
-let observer: IntersectionObserver | null = null;
-
-watch(loadMoreTrigger, (el) => {
-  if (el && observer) observer.observe(el);
-});
+const loadMore = () => {
+  displayLimit.value += 12;
+};
 
 watch([currentTab, sortBy, searchQuery], () => {
   displayLimit.value = 12;
@@ -831,21 +813,6 @@ watch([currentTab, sortBy, searchQuery], () => {
 
 onMounted(() => {
   fetchData();
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting && hasMore.value) {
-        setTimeout(() => {
-          displayLimit.value += 12;
-        }, 300);
-      }
-    },
-    { threshold: 0.1 }
-  );
-
-  if (loadMoreTrigger.value) {
-    observer.observe(loadMoreTrigger.value);
-  }
 });
 
 watch(isSelf, (newVal) => {

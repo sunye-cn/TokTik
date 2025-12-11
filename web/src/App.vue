@@ -4,18 +4,28 @@
       <div class="w-full px-6 flex h-14 items-center">
         <div class="mr-4 flex">
           <router-link to="/" class="mr-6 flex items-center space-x-2">
-            <span class="font-bold inline-block">TokTik</span>
+            <span class="font-bold text-2xl inline-block italic">TokTik</span>
           </router-link>
           <nav class="flex items-center space-x-6 text-sm font-medium">
             <router-link
               to="/"
-              class="transition-colors hover:text-foreground/80 text-foreground/60"
+              :class="[
+                'transition-colors hover:text-foreground/80',
+                route.path === '/'
+                  ? 'text-foreground font-bold'
+                  : 'text-foreground/60',
+              ]"
               >Home</router-link
             >
             <router-link
               v-if="isAuthenticated"
               to="/upload"
-              class="transition-colors hover:text-foreground/80 text-foreground/60"
+              :class="[
+                'transition-colors hover:text-foreground/80',
+                route.path === '/upload'
+                  ? 'text-foreground font-bold'
+                  : 'text-foreground/60',
+              ]"
               >Upload</router-link
             >
           </nav>
@@ -160,6 +170,9 @@
         </div>
       </div>
       <template #footer>
+        <Button variant="outline" @click="showDeleteNoticeModal = false">
+          Cancel
+        </Button>
         <Button :disabled="!deleteAgreed" @click="handleDeleteNoticeNext">
           Next
         </Button>

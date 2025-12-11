@@ -707,7 +707,7 @@ const progress = ref(0);
 const isDragging = ref(false);
 const showAnalysisModal = ref(false);
 const selectedMetric = ref("views");
-const newFollowersCount = ref(Math.floor(Math.random() * 10));
+const newFollowersCount = ref(0);
 const fanViewPercent = ref((Math.random() * 100).toFixed(2));
 
 const showAnalysisButton = computed(() => {
@@ -739,6 +739,17 @@ const generateHistory = (
     history.push(Math.floor(Math.random() * (max - min + 1)) + min);
   }
   history.push(current);
+  return history;
+};
+
+const generateCumulativeHistory = (total: number, count: number) => {
+  const history = new Array(count).fill(0);
+  history[count - 1] = total;
+  for (let i = count - 2; i >= 0; i--) {
+    const maxDecrease = (total / count) * 2;
+    const decrease = Math.floor(Math.random() * maxDecrease);
+    history[i] = Math.max(0, history[i + 1] - decrease);
+  }
   return history;
 };
 
@@ -784,7 +795,7 @@ const chartData = computed(() => {
       break;
     case "followers":
       label = "New Followers";
-      data = generateHistory(newFollowersCount.value, 0, 5, numDays);
+      data = generateCumulativeHistory(newFollowersCount.value, numDays);
       break;
     case "fanView":
       label = "Fan View %";
@@ -917,10 +928,12 @@ const fetchVideo = async () => {
   try {
     const response = await api.get(`/videos/${route.params.id}`);
     video.value = response.data;
+    if (response.data.newFollowersCount !== undefined) {
+      newFollowersCount.value = response.data.newFollowersCount;
+    }
     fetchAuthorStats();
     fetchComments();
     fetchDanmakus();
-    fetchAuthorStats();
   } catch (error) {
     console.error("Error fetching video:", error);
   }

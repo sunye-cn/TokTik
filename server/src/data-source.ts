@@ -5,6 +5,7 @@ import { Video } from "./entity/Video";
 import { Like } from "./entity/Like";
 import { Comment } from "./entity/Comment";
 import { Danmaku } from "./entity/Danmaku";
+import { Follow } from "./entity/Follow";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -18,7 +19,7 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME || "toktik",
     synchronize: true, // Don't use this in production
     logging: false,
-    entities: [User, Video, Like, Comment, Danmaku],
+    entities: [User, Video, Like, Comment, Danmaku, Follow],
     migrations: [],
     subscribers: [],
 });

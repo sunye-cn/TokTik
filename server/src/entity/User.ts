@@ -3,6 +3,7 @@ import { Video } from "./Video";
 import { Like } from "./Like";
 import { Comment } from "./Comment";
 import { Danmaku } from "./Danmaku";
+import { Follow } from "./Follow";
 
 @Entity()
 export class User {
@@ -33,12 +34,11 @@ export class User {
     @OneToMany(() => Danmaku, (danmaku) => danmaku.user)
     danmakus!: Danmaku[];
 
-    @ManyToMany(() => User, (user) => user.following)
-    @JoinTable()
-    followers!: User[];
+    @OneToMany(() => Follow, (follow) => follow.following)
+    followers!: Follow[];
 
-    @ManyToMany(() => User, (user) => user.followers)
-    following!: User[];
+    @OneToMany(() => Follow, (follow) => follow.follower)
+    following!: Follow[];
 
     @CreateDateColumn()
     createdAt!: Date;

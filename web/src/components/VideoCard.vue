@@ -211,7 +211,7 @@ const props = withDefaults(
   }
 );
 
-defineEmits(["edit", "delete"]);
+const emit = defineEmits(["edit", "delete", "toggle-like"]);
 
 const store = useStore();
 const videoRef = ref<HTMLVideoElement | null>(null);
@@ -348,10 +348,12 @@ const toggleLike = async () => {
       await api.delete(`/videos/${props.video.id}/like`);
       likeCount.value--;
       isLiked.value = false;
+      emit("toggle-like", { id: props.video.id, isLiked: false });
     } else {
       await api.post(`/videos/${props.video.id}/like`);
       likeCount.value++;
       isLiked.value = true;
+      emit("toggle-like", { id: props.video.id, isLiked: true });
     }
   } catch (error) {
     console.error("Failed to toggle like", error);

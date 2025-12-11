@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { User } from "../entity/User";
 import { Video } from "../entity/Video";
+import { Follow } from "../entity/Follow";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -99,14 +100,14 @@ export class UserController {
             const user = await userRepository.findOneOrFail({ 
                 where: { id },
                 select: ["id", "username", "nickname", "avatar", "createdAt"],
-                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following"]
+                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following", "followers.follower"]
             });
 
             const followersCount = user.followers.length;
             const followingCount = user.following.length;
             const totalLikes = user.videos.reduce((acc, video) => acc + video.likes.length, 0);
             
-            const isFollowing = user.followers.some(u => u.id === currentUserId);
+            const isFollowing = user.followers.some(f => f.follower.id === currentUserId);
 
             res.send({ ...user, followersCount, followingCount, totalLikes, isFollowing });
         } catch (error) {
@@ -122,14 +123,14 @@ export class UserController {
             const user = await userRepository.findOneOrFail({ 
                 where: { username },
                 select: ["id", "username", "nickname", "avatar", "createdAt"],
-                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following"]
+                relations: ["videos", "videos.likes", "videos.likes.user", "followers", "following", "followers.follower"]
             });
 
             const followersCount = user.followers.length;
             const followingCount = user.following.length;
             const totalLikes = user.videos.reduce((acc, video) => acc + video.likes.length, 0);
             
-            const isFollowing = user.followers.some(u => u.id === currentUserId);
+            const isFollowing = user.followers.some(f => f.follower.id === currentUserId);
 
             res.send({ ...user, followersCount, followingCount, totalLikes, isFollowing });
         } catch (error) {
@@ -140,6 +141,7 @@ export class UserController {
     static follow = async (req: Request, res: Response) => {
         const userId = res.locals.jwtPayload.userId;
         const followId = parseInt(req.params.id);
+        const followRepository = AppDataSource.getRepository(Follow);
         const userRepository = AppDataSource.getRepository(User);
 
         if (userId === followId) {
@@ -148,12 +150,18 @@ export class UserController {
         }
 
         try {
-            const user = await userRepository.findOneOrFail({ where: { id: userId }, relations: ["following"] });
-            const followUser = await userRepository.findOneOrFail({ where: { id: followId } });
+            const existingFollow = await followRepository.findOne({
+                where: {
+                    follower: { id: userId },
+                    following: { id: followId }
+                }
+            });
 
-            if (!user.following.some(u => u.id === followId)) {
-                user.following.push(followUser);
-                await userRepository.save(user);
+            if (!existingFollow) {
+                const follow = new Follow();
+                follow.follower = await userRepository.findOneOrFail({ where: { id: userId } });
+                follow.following = await userRepository.findOneOrFail({ where: { id: followId } });
+                await followRepository.save(follow);
             }
             res.send("Followed successfully");
         } catch (error) {
@@ -164,12 +172,19 @@ export class UserController {
     static unfollow = async (req: Request, res: Response) => {
         const userId = res.locals.jwtPayload.userId;
         const unfollowId = parseInt(req.params.id);
-        const userRepository = AppDataSource.getRepository(User);
+        const followRepository = AppDataSource.getRepository(Follow);
 
         try {
-            const user = await userRepository.findOneOrFail({ where: { id: userId }, relations: ["following"] });
-            user.following = user.following.filter(u => u.id !== unfollowId);
-            await userRepository.save(user);
+            const follow = await followRepository.findOne({
+                where: {
+                    follower: { id: userId },
+                    following: { id: unfollowId }
+                }
+            });
+
+            if (follow) {
+                await followRepository.remove(follow);
+            }
             res.send("Unfollowed successfully");
         } catch (error) {
             res.status(500).send("Error unfollowing user");
@@ -206,29 +221,42 @@ export class UserController {
     static getFollowing = async (req: Request, res: Response) => {
         const id = parseInt(req.params.id);
         const currentUserId = res.locals.jwtPayload.userId;
-        const userRepository = AppDataSource.getRepository(User);
+        const followRepository = AppDataSource.getRepository(Follow);
 
         try {
-            const user = await userRepository.findOneOrFail({
-                where: { id },
-                relations: ["following", "following.following"]
+            const follows = await followRepository.find({
+                where: { follower: { id } },
+                relations: ["following"]
             });
 
-            const followingList = user.following.map(u => {
-                // Check if u follows me (currentUserId)
-                // u.following contains people u follows.
-                const isFollowingMe = u.following.some(f => f.id === currentUserId);
-                
+            const followingUsers = follows.map(f => f.following);
+            
+            const myFollows = await followRepository.find({
+                where: { follower: { id: currentUserId } },
+                relations: ["following"]
+            });
+            const myFollowIds = new Set(myFollows.map(f => f.following.id));
+
+            const myFollowers = await followRepository.find({
+                where: { following: { id: currentUserId } },
+                relations: ["follower"]
+            });
+            const myFollowerIds = new Set(myFollowers.map(f => f.follower.id));
+
+            const result = followingUsers.map(u => {
+                const isFollowing = myFollowIds.has(u.id);
+                const isFollowedBy = myFollowerIds.has(u.id);
                 return {
                     id: u.id,
                     username: u.username,
                     nickname: u.nickname,
                     avatar: u.avatar,
-                    isMutual: isFollowingMe
+                    isMutual: isFollowing && isFollowedBy,
+                    isFollowing: isFollowing
                 };
             });
 
-            res.send(followingList);
+            res.send(result);
         } catch (error) {
             res.status(500).send("Error fetching following list");
         }
@@ -237,30 +265,42 @@ export class UserController {
     static getFollowers = async (req: Request, res: Response) => {
         const id = parseInt(req.params.id);
         const currentUserId = res.locals.jwtPayload.userId;
-        const userRepository = AppDataSource.getRepository(User);
+        const followRepository = AppDataSource.getRepository(Follow);
 
         try {
-            const user = await userRepository.findOneOrFail({
-                where: { id },
-                relations: ["followers", "followers.followers"]
+            const follows = await followRepository.find({
+                where: { following: { id } },
+                relations: ["follower"]
             });
 
-            const followersList = user.followers.map(u => {
-                // Check if I (currentUserId) follow u.
-                // u.followers contains people who follow u.
-                const doIFollow = u.followers.some(f => f.id === currentUserId);
+            const followerUsers = follows.map(f => f.follower);
 
+            const myFollows = await followRepository.find({
+                where: { follower: { id: currentUserId } },
+                relations: ["following"]
+            });
+            const myFollowIds = new Set(myFollows.map(f => f.following.id));
+
+            const myFollowers = await followRepository.find({
+                where: { following: { id: currentUserId } },
+                relations: ["follower"]
+            });
+            const myFollowerIds = new Set(myFollowers.map(f => f.follower.id));
+
+            const result = followerUsers.map(u => {
+                const isFollowing = myFollowIds.has(u.id);
+                const isFollowedBy = myFollowerIds.has(u.id);
                 return {
                     id: u.id,
                     username: u.username,
                     nickname: u.nickname,
                     avatar: u.avatar,
-                    isMutual: doIFollow,
-                    isFollowing: doIFollow
+                    isMutual: isFollowing && isFollowedBy,
+                    isFollowing: isFollowing
                 };
             });
 
-            res.send(followersList);
+            res.send(result);
         } catch (error) {
             res.status(500).send("Error fetching followers list");
         }
@@ -269,16 +309,19 @@ export class UserController {
     static removeFollower = async (req: Request, res: Response) => {
         const userId = res.locals.jwtPayload.userId;
         const followerId = parseInt(req.params.followerId);
-        const userRepository = AppDataSource.getRepository(User);
+        const followRepository = AppDataSource.getRepository(Follow);
 
         try {
-            const user = await userRepository.findOneOrFail({ 
-                where: { id: userId }, 
-                relations: ["followers"] 
+            const follow = await followRepository.findOne({
+                where: {
+                    follower: { id: followerId },
+                    following: { id: userId }
+                }
             });
             
-            user.followers = user.followers.filter(u => u.id !== followerId);
-            await userRepository.save(user);
+            if (follow) {
+                await followRepository.remove(follow);
+            }
             
             res.send("Follower removed successfully");
         } catch (error) {

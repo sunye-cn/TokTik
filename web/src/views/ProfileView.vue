@@ -169,6 +169,7 @@
               @click="openVideo(item)"
               @edit="openEditModal"
               @delete="deleteVideo"
+              @toggle-like="handleToggleLike"
             />
           </div>
         </template>
@@ -959,6 +960,39 @@ const confirmRemoveFollower = async () => {
     followerToRemoveId.value = null;
   } catch (error) {
     console.error(error);
+  }
+};
+
+const handleToggleLike = ({
+  id,
+  isLiked,
+}: {
+  id: number;
+  isLiked: boolean;
+}) => {
+  const updateVideo = (video: any) => {
+    if (isLiked) {
+      if (!video.likes) video.likes = [];
+      if (!video.likes.some((l: any) => l.user?.id === currentUser.value.id)) {
+        video.likes.push({ user: { id: currentUser.value.id } });
+      }
+    } else {
+      if (video.likes) {
+        video.likes = video.likes.filter(
+          (l: any) => l.user?.id !== currentUser.value.id
+        );
+      }
+    }
+  };
+
+  const myVideo = myVideos.value.find((v) => v.id === id);
+  if (myVideo) updateVideo(myVideo);
+
+  const likedVideo = likedVideos.value.find((v) => v.id === id);
+  if (likedVideo) {
+    updateVideo(likedVideo);
+  } else if (isLiked && myVideo) {
+    likedVideos.value.unshift(myVideo);
   }
 };
 

@@ -3,7 +3,8 @@ import { AppDataSource } from "../data-source";
 import { Video } from "../entity/Video";
 import { User } from "../entity/User";
 import { Like } from "../entity/Like";
-import { ILike } from "typeorm";
+import { Follow } from "../entity/Follow";
+import { ILike, MoreThan } from "typeorm";
 
 export class VideoController {
 
@@ -65,6 +66,7 @@ export class VideoController {
     static getOneById = async (req: Request, res: Response) => {
         const id = parseInt(req.params.id);
         const videoRepository = AppDataSource.getRepository(Video);
+        const followRepository = AppDataSource.getRepository(Follow);
         try {
             const video = await videoRepository.findOneOrFail({ 
                 where: { id },
@@ -75,7 +77,14 @@ export class VideoController {
             video.views = (video.views || 0) + 1;
             await videoRepository.save(video);
 
-            res.send(video);
+            const newFollowersCount = await followRepository.count({
+                where: {
+                    following: { id: video.user.id },
+                    createdAt: MoreThan(video.createdAt)
+                }
+            });
+
+            res.send({ ...video, newFollowersCount });
         } catch (error) {
             res.status(404).send("Video not found");
         }

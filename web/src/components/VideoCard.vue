@@ -7,6 +7,7 @@
         ref="videoRef"
         :src="videoUrl"
         class="w-full object-cover"
+        style="transform: scaleX(-1)"
         loop
         playsinline
         disablePictureInPicture

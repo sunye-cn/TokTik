@@ -10,6 +10,7 @@
           ref="videoRef"
           :src="videoUrl"
           class="w-full h-full object-contain"
+          style="transform: scaleX(-1)"
           autoplay
           disablePictureInPicture
           controlsList="nodownload noplaybackrate"

@@ -62,13 +62,28 @@
 
             <div v-if="!isRecordingMode" class="grid gap-2">
               <Label for="video">Video File</Label>
-              <Input
-                id="video"
-                @change="handleFileChange"
-                type="file"
-                accept="video/*"
-                class="cursor-pointer"
-              />
+              <div
+                class="flex min-h-[2.5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm items-center gap-2 cursor-pointer"
+                @click="triggerFileInput"
+              >
+                <Input
+                  id="video"
+                  ref="fileInputRef"
+                  @change="handleFileChange"
+                  type="file"
+                  accept="video/*"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  class="bg-[#f0f0f0] text-black border-none px-2 py-[2px] text-[13px] rounded-[2px] hover:bg-[#e0e0e0] whitespace-nowrap shrink-0"
+                >
+                  Choose File
+                </button>
+                <span class="text-[13px] text-black flex-1 break-all">
+                  {{ file ? file.name : "No file chosen" }}
+                </span>
+              </div>
             </div>
 
             <div v-else class="grid gap-2">
@@ -440,6 +455,14 @@ onUnmounted(() => {
     URL.revokeObjectURL(recordedUrl.value);
   }
 });
+
+const fileInputRef = ref<any>(null);
+
+const triggerFileInput = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.$el.click();
+  }
+};
 
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;

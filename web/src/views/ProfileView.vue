@@ -145,10 +145,10 @@
       class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
     >
       <div v-for="n in 8" :key="n" class="flex flex-col space-y-3">
-        <div class="h-[250px] w-full rounded-xl bg-muted animate-pulse"></div>
+        <Skeleton class="h-[250px] w-full rounded-xl" />
         <div class="space-y-2">
-          <div class="h-4 w-[250px] bg-muted animate-pulse rounded"></div>
-          <div class="h-4 w-[200px] bg-muted animate-pulse rounded"></div>
+          <Skeleton class="h-4 w-[250px]" />
+          <Skeleton class="h-4 w-[200px]" />
         </div>
       </div>
     </div>

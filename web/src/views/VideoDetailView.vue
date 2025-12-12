@@ -134,6 +134,50 @@
               {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
             </div>
 
+            <!-- Volume Control -->
+            <div
+              class="relative group/volume flex items-center justify-center ml-2"
+            >
+              <button
+                @click="toggleMute"
+                class="text-white hover:text-primary transition-colors p-1"
+              >
+                <VolumeX v-if="isMuted || volume === 0" class="h-6 w-6" />
+                <Volume2 v-else class="h-6 w-6" />
+              </button>
+
+              <!-- Volume Slider Popup -->
+              <div
+                class="absolute bottom-full left-1/2 -translate-x-1/2 w-8 hidden group-hover/volume:block pb-2"
+              >
+                <div
+                  class="w-full h-32 bg-[#2a2a2a] rounded-md flex flex-col items-center justify-end py-3 shadow-lg border border-white/10"
+                >
+                  <!-- Slider Track -->
+                  <div
+                    class="relative w-1 h-24 bg-white/30 rounded-full cursor-pointer group/slider"
+                    @click="handleVolumeClick"
+                    @mousedown="startVolumeDrag"
+                  >
+                    <!-- Filled Track -->
+                    <div
+                      class="absolute bottom-0 left-0 w-full bg-white rounded-full"
+                      :style="{ height: `${volume * 100}%` }"
+                    ></div>
+                    <!-- Thumb -->
+                    <div
+                      class="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full shadow-sm opacity-0 group-hover/slider:opacity-100 transition-opacity"
+                      :style="{ bottom: `calc(${volume * 100}% - 6px)` }"
+                    ></div>
+                  </div>
+                  <!-- Value Display -->
+                  <div class="mt-2 text-[10px] text-white font-mono">
+                    {{ Math.round(volume * 100) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Danmaku Toggle -->
             <div class="flex items-center gap-2">
               <label
@@ -661,7 +705,16 @@ import { useStore } from "vuex";
 import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Settings, Play, Pause, PieChart, X } from "lucide-vue-next";
+import {
+  Heart,
+  Settings,
+  Play,
+  Pause,
+  PieChart,
+  X,
+  Volume2,
+  VolumeX,
+} from "lucide-vue-next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -708,7 +761,79 @@ const isDragging = ref(false);
 const showAnalysisModal = ref(false);
 const selectedMetric = ref("views");
 const newFollowersCount = ref(0);
-const fanViewPercent = ref((Math.random() * 100).toFixed(2));
+const fanViewPercent = ref("0.00");
+
+const volume = ref(1);
+const isMuted = ref(false);
+const previousVolume = ref(1);
+const isDraggingVolume = ref(false);
+
+const toggleMute = () => {
+  if (isMuted.value) {
+    volume.value = previousVolume.value || 1;
+    isMuted.value = false;
+  } else {
+    previousVolume.value = volume.value;
+    volume.value = 0;
+    isMuted.value = true;
+  }
+  if (videoRef.value) {
+    videoRef.value.volume = volume.value;
+    videoRef.value.muted = isMuted.value;
+  }
+};
+
+const updateVolumeFromEvent = (event: MouseEvent, element: HTMLElement) => {
+  const rect = element.getBoundingClientRect();
+  const y = event.clientY - rect.top;
+  const height = rect.height;
+  // Calculate volume based on click position (bottom is 0, top is 1)
+  // y is distance from top. So volume = 1 - (y / height)
+  let newVolume = 1 - y / height;
+  newVolume = Math.max(0, Math.min(1, newVolume));
+
+  volume.value = newVolume;
+  if (newVolume > 0) {
+    isMuted.value = false;
+    if (videoRef.value) videoRef.value.muted = false;
+  } else {
+    isMuted.value = true;
+    if (videoRef.value) videoRef.value.muted = true;
+  }
+
+  if (videoRef.value) {
+    videoRef.value.volume = newVolume;
+  }
+};
+
+const handleVolumeClick = (event: MouseEvent) => {
+  const target = event.currentTarget as HTMLElement;
+  updateVolumeFromEvent(event, target);
+};
+
+const startVolumeDrag = (event: MouseEvent) => {
+  event.preventDefault();
+  isDraggingVolume.value = true;
+  const target = event.currentTarget as HTMLElement;
+  updateVolumeFromEvent(event, target);
+
+  function handleMouseMove(e: MouseEvent) {
+    if (e.buttons === 0) {
+      handleMouseUp();
+      return;
+    }
+    updateVolumeFromEvent(e, target);
+  }
+
+  function handleMouseUp() {
+    isDraggingVolume.value = false;
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  }
+
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
+};
 
 const showAnalysisButton = computed(() => {
   return isOwner.value && route.query.showAnalysis === "true";
@@ -799,12 +924,7 @@ const chartData = computed(() => {
       break;
     case "fanView":
       label = "Fan View %";
-      data = generateHistory(
-        parseFloat(fanViewPercent.value),
-        50,
-        100,
-        numDays
-      );
+      data = generateHistory(parseFloat(fanViewPercent.value), 0, 100, numDays);
       break;
   }
 
@@ -930,6 +1050,9 @@ const fetchVideo = async () => {
     video.value = response.data;
     if (response.data.newFollowersCount !== undefined) {
       newFollowersCount.value = response.data.newFollowersCount;
+    }
+    if (response.data.fanViewPercent !== undefined) {
+      fanViewPercent.value = response.data.fanViewPercent;
     }
     fetchAuthorStats();
     fetchComments();

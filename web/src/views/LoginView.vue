@@ -57,7 +57,7 @@
     <Modal
       :isOpen="showSuccessModal"
       title="Welcome Back!"
-      description="登录成功！欢迎来到TokTik!"
+      description="Login successful! Welcome to TokTik!"
       :closeOnBackdropClick="false"
     >
       <template #footer>

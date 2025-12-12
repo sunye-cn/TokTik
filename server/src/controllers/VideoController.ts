@@ -5,6 +5,7 @@ import { User } from "../entity/User";
 import { Like } from "../entity/Like";
 import { Follow } from "../entity/Follow";
 import { ILike, MoreThan } from "typeorm";
+import * as jwt from "jsonwebtoken";
 
 export class VideoController {
 
@@ -73,8 +74,42 @@ export class VideoController {
                 relations: ["user", "likes", "likes.user", "comments", "comments.user", "danmakus", "danmakus.user"]
             });
             
+            // Handle view counting logic
+            let isAuthor = false;
+            let isFollower = false;
+
+            const token = req.headers["auth"] as string;
+            if (token) {
+                try {
+                    const jwtPayload = <any>jwt.verify(token, process.env.JWT_SECRET || "secret");
+                    const userId = jwtPayload.userId;
+
+                    if (userId === video.user.id) {
+                        isAuthor = true;
+                    } else {
+                        const follow = await followRepository.findOne({
+                            where: {
+                                follower: { id: userId },
+                                following: { id: video.user.id }
+                            }
+                        });
+                        if (follow) {
+                            isFollower = true;
+                        }
+                    }
+                } catch (e) {
+                    // Invalid token, treat as anonymous
+                }
+            }
+
             // Increment views
             video.views = (video.views || 0) + 1;
+            if (isAuthor) {
+                video.authorViews = (video.authorViews || 0) + 1;
+            } else if (isFollower) {
+                video.followerViews = (video.followerViews || 0) + 1;
+            }
+            
             await videoRepository.save(video);
 
             const newFollowersCount = await followRepository.count({
@@ -84,7 +119,15 @@ export class VideoController {
                 }
             });
 
-            res.send({ ...video, newFollowersCount });
+            // Calculate Fan View %
+            // Exclude author views from the denominator
+            const validViews = Math.max(0, video.views - (video.authorViews || 0));
+            let fanViewPercent = 0;
+            if (validViews > 0) {
+                fanViewPercent = ((video.followerViews || 0) / validViews) * 100;
+            }
+
+            res.send({ ...video, newFollowersCount, fanViewPercent: fanViewPercent.toFixed(2) });
         } catch (error) {
             res.status(404).send("Video not found");
         }

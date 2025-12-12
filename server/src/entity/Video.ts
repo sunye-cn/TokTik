@@ -24,6 +24,12 @@ export class Video {
     @Column({ default: 0 })
     views!: number;
 
+    @Column({ default: 0 })
+    followerViews!: number;
+
+    @Column({ default: 0 })
+    authorViews!: number;
+
     @Column({ nullable: true })
     category!: string;
 

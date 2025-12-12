@@ -85,12 +85,40 @@
                   class="h-full w-full object-cover"
                   style="transform: scaleX(-1)"
                 ></video>
-                <video
-                  v-else
-                  :src="recordedUrl"
-                  controls
-                  class="h-full w-full object-contain"
-                ></video>
+                <div v-else class="relative h-full w-full group">
+                  <video
+                    ref="recordedVideoRef"
+                    :src="recordedUrl"
+                    class="h-full w-full object-contain"
+                    style="transform: scaleX(-1)"
+                    @click="toggleRecordedPlay"
+                    @ended="isRecordedPlaying = false"
+                  ></video>
+                  <div
+                    v-if="!isRecordedPlaying"
+                    class="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
+                    @click="toggleRecordedPlay"
+                  >
+                    <Play class="h-12 w-12 text-white opacity-80" />
+                  </div>
+                  <!-- Progress Bar -->
+                  <div
+                    id="video-progress-bar"
+                    class="absolute bottom-0 left-0 right-0 h-4 bg-transparent cursor-pointer group/progress flex items-end"
+                    @mousedown.stop="startDragging"
+                  >
+                    <div class="h-1 bg-white/40 w-full relative">
+                      <div
+                        class="h-full bg-white absolute left-0 top-0"
+                        :style="{ width: `${recordedProgress}%` }"
+                      ></div>
+                      <div
+                        class="absolute top-1/2 -translate-y-1/2 h-3 w-3 bg-white rounded-full shadow-sm cursor-grab active:cursor-grabbing scale-0 group-hover/progress:scale-100 transition-transform"
+                        :style="{ left: `${recordedProgress}%` }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
 
                 <div
                   v-if="!recordedUrl"
@@ -175,6 +203,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { VIDEO_CATEGORIES } from "@/lib/constants";
+import { Play } from "lucide-vue-next";
 
 const title = ref("");
 const description = ref("");
@@ -190,6 +219,9 @@ const isRecording = ref(false);
 const isCameraReady = ref(false);
 const recordedUrl = ref<string | null>(null);
 const videoPreview = ref<HTMLVideoElement | null>(null);
+const recordedVideoRef = ref<HTMLVideoElement | null>(null);
+const isRecordedPlaying = ref(false);
+const recordedProgress = ref(0);
 let stream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let chunks: Blob[] = [];
@@ -328,8 +360,82 @@ const toggleMode = (mode: "upload" | "record") => {
   }
 };
 
+const isDraggingProgress = ref(false);
+let progressAnimationFrame: number;
+
+const updateProgress = () => {
+  if (isDraggingProgress.value || !recordedVideoRef.value) return;
+  const current = recordedVideoRef.value.currentTime;
+  const total = recordedVideoRef.value.duration;
+  if (total) {
+    recordedProgress.value = (current / total) * 100;
+  }
+  if (!recordedVideoRef.value.paused) {
+    progressAnimationFrame = requestAnimationFrame(updateProgress);
+  }
+};
+
+const startDragging = (event: MouseEvent) => {
+  isDraggingProgress.value = true;
+  handleDrag(event);
+  window.addEventListener("mousemove", handleDrag);
+  window.addEventListener("mouseup", stopDragging);
+};
+
+const handleDrag = (event: MouseEvent) => {
+  if (!recordedVideoRef.value) return;
+  const progressBar = document.getElementById("video-progress-bar");
+  if (!progressBar) return;
+
+  const rect = progressBar.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const percentage = Math.max(0, Math.min(1, x / rect.width));
+  recordedProgress.value = percentage * 100;
+
+  // Optional: Update video time while dragging for preview (might be laggy on some devices)
+  // recordedVideoRef.value.currentTime = percentage * recordedVideoRef.value.duration;
+};
+
+const stopDragging = (event: MouseEvent) => {
+  isDraggingProgress.value = false;
+  window.removeEventListener("mousemove", handleDrag);
+  window.removeEventListener("mouseup", stopDragging);
+
+  if (recordedVideoRef.value) {
+    // Finalize seek
+    const progressBar = document.getElementById("video-progress-bar");
+    if (progressBar) {
+      const rect = progressBar.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, x / rect.width));
+      recordedVideoRef.value.currentTime =
+        percentage * recordedVideoRef.value.duration;
+    }
+
+    if (!recordedVideoRef.value.paused) {
+      updateProgress();
+    }
+  }
+};
+
+const toggleRecordedPlay = () => {
+  if (!recordedVideoRef.value) return;
+  if (recordedVideoRef.value.paused) {
+    recordedVideoRef.value.play();
+    isRecordedPlaying.value = true;
+    updateProgress();
+  } else {
+    recordedVideoRef.value.pause();
+    isRecordedPlaying.value = false;
+    cancelAnimationFrame(progressAnimationFrame);
+  }
+};
+
 onUnmounted(() => {
   stopCamera();
+  cancelAnimationFrame(progressAnimationFrame);
+  window.removeEventListener("mousemove", handleDrag);
+  window.removeEventListener("mouseup", stopDragging);
   if (recordedUrl.value) {
     URL.revokeObjectURL(recordedUrl.value);
   }

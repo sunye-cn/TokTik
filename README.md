@@ -2,8 +2,8 @@
 
 TokTik 是一个基于 **Vue 3** 和 **Node.js** 构建的全栈短视频分享平台。它模仿了现代短视频应用的核心体验，支持瀑布流浏览、视频录制与上传、弹幕互动等功能。
 
-![TokTik Banner](https://via.placeholder.com/1200x400?text=TokTik+Project+Preview)
-*(此处可以替换为项目的实际截图)*
+<img width="1863" height="797" alt="image" src="https://github.com/user-attachments/assets/1fda0bce-eded-4e34-bf5d-aff13e8b9f55" />
+
 
 ## ✨ 项目亮点 (Features)
 
